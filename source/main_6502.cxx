@@ -1,3 +1,5 @@
+// 6502 Emulator
+// Licensed under the GPL V3 License.
 #include <stdio.h>
 #include <stdlib.h>
 
