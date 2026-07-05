@@ -10,11 +10,11 @@ using u32 = unsigned int;
 struct Mem {
     static const u32 MAX_MEM = 1024 * 64;
     BYTE data[MAX_MEM];
-    void init() {
-        for (u32 i = 0; i < MAX_MEM; ++i) {
-            data[i] = 0;
-        }
-    };
+   // void init() {
+   //     for (u32 i = 0; i < MAX_MEM; ++i) {
+   //         data[i] = 0;
+   //     }
+   // };
     BYTE operator[](u32 addr) const {
         return data[addr];
     };
@@ -46,11 +46,10 @@ struct CPU{
         INS_LDA_ZP  = 0xA5; // Load Accumulator from Zero Page
     
     void reset( Mem & memory) {
-        PC = 0xFFFC; // Reset vector address
+        PC = memory[0xFFFC] | (memory[0xFFFD] << 8); // Reset vector address
         SP = 0x00; // Stack Pointer initialized to 0x00
         A = X = Y = 0; // Clear registers
         D = C = Z = I = B = V = N = 0; // Clear status flags
-        memory.init(); 
     }
     void LDASetStatusFlags() {
         Z = (A == 0);
@@ -97,6 +96,11 @@ struct CPU{
         ticks--;
         return Data;
     }
+    BYTE WriteByte(u32& ticks, BYTE address, BYTE data, Mem & memory) {
+        memory[address] = data;
+        ticks--;
+        return data;
+    }
         
 };
 
@@ -105,10 +109,13 @@ struct CPU{
 int main() {
     Mem mem;
     CPU cpu;
+    //Reset Vector
+    mem[0xFFFC] = 0x00; // Low byte
+    mem[0xFFFD] = 0x01; // High byte
+    mem[0x0100] = 0xA9; // LDA 
+    mem[0x0101] = 0x7F; 
     cpu.reset(mem);
     mem[0x00FF] = 0x01;
-    mem[0xFFFC] = 0xA5;
-    mem[0xFFFD] = 0xFF; // LDA #$42
-    cpu.execute(3, mem);
+    cpu.execute(2, mem);
     return 0;
 }
