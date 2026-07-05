@@ -39,8 +39,9 @@ struct CPU{
 
     //Opcodes
     static const BYTE
-         INS_LDA_IMM = 0xA9, // Load Accumulator with Immediate
-         INS_LDA_ZP  = 0xA5; // Load Accumulator from Zero Page
+        INS_JMP_ABS = 0x4C, // Jump to Address
+        INS_LDA_IMM = 0xA9, // Load Accumulator with Immediate
+        INS_LDA_ZP  = 0xA5; // Load Accumulator from Zero Page
     
     void reset( Mem & memory) {
         PC = 0xFFFC; // Reset vector address
@@ -68,6 +69,12 @@ struct CPU{
                     BYTE zero_page_addr = fetch( ticks, memory);
                     A = ReadByte(ticks, zero_page_addr, memory);
                     LDASetStatusFlags();
+                    break;
+                }
+                case INS_JMP_ABS: {
+                    WORD addr = fetch(ticks, memory); // Low byte
+                    addr |= ((WORD)fetch(ticks, memory)) << 8; // High byte
+                    PC = addr;
                     break;
                 }
                 default:
