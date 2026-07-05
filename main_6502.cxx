@@ -20,22 +20,29 @@ struct CPU{
     BYTE V : 1; // Overflow Flag
     BYTE N : 1; // Negative Flag
     
-    void reset() {
+    void reset( Mem & memory) {
         PC = 0xFFFC; // Reset vector address
         SP = 0x0100; // Stack Pointer initialized to 0x0100
         A = X = Y = 0; // Clear registers
         D = C = Z = I = B = V = N = 0; // Clear status flags
+        memory.init();
     }
         
 };
 
-struct mem {
+struct Mem {
     static const u32 MAX_MEM = 1024 * 64;
     BYTE data[MAX_MEM];
+    void init() {
+        for (u32 i = 0; i < MAX_MEM; ++i) {
+            data[i] = 0;
+        }
+    }
 };
 
 int main() {
+    Mem mem;
     CPU cpu;
-    cpu.reset();
+    cpu.reset(mem);
     return 0;
 }
