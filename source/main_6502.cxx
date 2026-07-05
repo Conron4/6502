@@ -37,15 +37,21 @@ struct CPU{
     BYTE V : 1; // Overflow Flag
     BYTE N : 1; // Negative Flag
 
+    //Opcodes
     static const BYTE
-         INS_LDA_IMM = 0xA9; // Load Accumulator with Immediate
+         INS_LDA_IMM = 0xA9, // Load Accumulator with Immediate
+         INS_LDA_ZP  = 0xA5; // Load Accumulator from Zero Page
     
     void reset( Mem & memory) {
         PC = 0xFFFC; // Reset vector address
-        SP = 0x0100; // Stack Pointer initialized to 0x0100
+        SP = 0x00; // Stack Pointer initialized to 0x00
         A = X = Y = 0; // Clear registers
         D = C = Z = I = B = V = N = 0; // Clear status flags
         memory.init(); 
+    }
+    void LDASetStatusFlags() {
+        Z = (A == 0);
+        N = (A & 0x80) != 0;
     }
 
     void execute(u32 ticks, Mem & memory) {
@@ -55,8 +61,13 @@ struct CPU{
                 case INS_LDA_IMM: {
                     BYTE value = fetch( ticks, memory);
                     A = value;
-                    Z = (A == 0);
-                    N = (A & 0x80) != 0;
+                    LDASetStatusFlags();
+                    break;
+                }
+                case INS_LDA_ZP: {
+                    BYTE zero_page_addr = fetch( ticks, memory);
+                    A = ReadByte(ticks, zero_page_addr, memory);
+                    LDASetStatusFlags();
                     break;
                 }
                 default:
@@ -72,6 +83,11 @@ struct CPU{
         ticks--;
         return instruction;
     }
+    BYTE ReadByte(u32& ticks, BYTE address, Mem & memory) {
+        BYTE Data = memory[address];
+        ticks--;
+        return Data;
+    }
         
 };
 
@@ -81,8 +97,9 @@ int main() {
     Mem mem;
     CPU cpu;
     cpu.reset(mem);
-    mem[0xFFFC] = 0xA9;
-    mem[0xFFFD] = 0x42; // LDA #$42
-    cpu.execute(2, mem);
+    mem[0x00FF] = 0x01;
+    mem[0xFFFC] = 0xA5;
+    mem[0xFFFD] = 0xFF; // LDA #$42
+    cpu.execute(3, mem);
     return 0;
 }
