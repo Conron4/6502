@@ -6,13 +6,16 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <SDL2/SDL.h>
+
 
 using byte = unsigned char;
 using word = unsigned short;
 using u32 = unsigned int;
 
+
 struct Mem {
-    static const u32 MAX_MEM = 1024 * 48; // 48KB of memory
+    static const u32 MAX_MEM = 1024 * 44; // 44KB of memory
     byte data[MAX_MEM];
     void init() {
         for (u32 i = 0; i < MAX_MEM; ++i) {
@@ -70,37 +73,59 @@ struct Rom {
     }
 };
 
+struct Vram {
+    static const u32 MAX_VRAM = 1024 * 4; // 4KB of VRAM
+    byte data[MAX_VRAM];
+    void init() {
+        for (u32 i = 0; i < MAX_VRAM; ++i) {
+            data[i] = 0;
+        }
+    };
+    
+    byte operator[](u32 addr) const {
+        return data[addr];
+    };
+
+    byte & operator[](u32 addr) {
+        return data[addr];
+    }
+};
+
 // Unified Memory System that translates addresses automatically
 struct Bus {
     Mem ram;
     Rom rom;
-
+    Vram vram;
+    static const u32 PageSize = 4096; // 4KB pages for memory mapping
     // 16 pages of 4KB to cover the entire 64KB address space
     // We create separate read and write maps so ROM writes can point to a dead buffer
     const byte* read_map[16];
     byte* write_map[16];
     
-    byte junk_page[4096]; // A throwaway buffer to absorb forbidden ROM writes safely
+    byte junk_page[PageSize]; // A throwaway buffer to absorb forbidden ROM writes safely
 
     void init() {
         ram.init();
         rom.init();
-        for (int i = 0; i < 4096; ++i) junk_page[i] = 0;
+        vram.init();
+        for (int i = 0; i < PageSize; ++i) junk_page[i] = 0;
 
-        // Map the first 12 pages (0x0000 to 0xBFFF) directly to RAM
+        // Map the first 11 pages (0x0000 to 0xBFFF) directly to RAM
         // Each index represents a 4KB chunk
-        for (int page = 0; page < 12; ++page) {
-            read_map[page]  = &ram.data[page * 4096];
-            write_map[page] = &ram.data[page * 4096];
+        for (int page = 0; page < 11; ++page) {
+            read_map[page]  = &ram.data[page * PageSize];
+            write_map[page] = &ram.data[page * PageSize];
         }
-
+        for (int page = 11; page < 12; ++page) {
+            read_map[page]  = &vram.data[(page - 11) * PageSize];
+            write_map[page] = &vram.data[(page - 11) * PageSize];
+        }
         // Map the remaining 4 pages (0xC000 to 0xFFFF) to ROM
         // We subtract 12 from the index so page 12 points to index 0 of ROM data
         for (int page = 12; page < 16; ++page) {
-            read_map[page]  = &rom.data[(page - 12) * 4096];
+            read_map[page]  = &rom.data[(page - 12) * PageSize];
             
-            // CRITICAL SPEED TRICK: Point ROM writes to our junk page. 
-            // The CPU can write to it all it wants; it won't affect ROM or cause an IF statement.
+            // ROM writes pushed to junk page
             write_map[page] = junk_page; 
         }
     }
@@ -116,6 +141,83 @@ struct Bus {
         u32 page = address >> 12;
         u32 offset = address & 0x0FFF;
         write_map[page][offset] = value;
+    }
+
+    void render_screen() const {
+    const int SCREEN_WIDTH = 640;
+    const int SCREEN_HEIGHT = 400;
+    const int SCALE = 2; // Scales window to 1280x800 so it's easy to see
+
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "SDL Init Failed: " << SDL_GetError() << std::endl;
+        return;
+    }
+
+    SDL_Window* window = SDL_CreateWindow(
+        "6502 Emulator Display (80x50)",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        SCREEN_WIDTH * SCALE, SCREEN_HEIGHT * SCALE,
+        SDL_WINDOW_SHOWN
+    );
+
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    // This allows us to work in our raw 640x400 space while SDL handles scaling automatically
+    SDL_RenderSetScale(renderer, SCALE, SCALE); 
+
+    const word vram_start = 0xB000;
+    const word char_rom_start = 0xC000;
+
+    bool running = true;
+    SDL_Event event;
+
+    // Window event loop
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                running = false;
+            }
+        }
+
+        // Clear display to a retro dark grey background
+        SDL_SetRenderDrawColor(renderer, 0x1A, 0x1A, 0x1A, 0xFF);
+        SDL_RenderClear(renderer);
+
+        // Set pixel color to classic C16 light green/blue (or whatever color you want)
+        SDL_SetRenderDrawColor(renderer, 0x64, 0xFF, 0x64, 0xFF);
+
+        // Unpack memory and draw pixels
+        for (u32 row = 0; row < 50; ++row) {
+            for (u32 pixel_row = 0; pixel_row < 8; ++pixel_row) {
+                for (u32 col = 0; col < 80; ++col) {
+                    
+                    u32 vram_offset = (row * 80) + col;
+                    byte char_index = read(vram_start + vram_offset);
+
+                    word pixel_data_address = char_rom_start + (char_index * 8) + pixel_row;
+                    byte row_bits = read(pixel_data_address);
+
+                    for (int bit = 0; bit < 8; ++bit) {
+                        bool is_pixel_on = (row_bits >> (7 - bit)) & 1;
+                        
+                        if (is_pixel_on) {
+                            // Calculate absolute screen X and Y pixel coordinates
+                            int screen_x = (col * 8) + bit;
+                            int screen_y = (row * 8) + pixel_row;
+                            SDL_RenderDrawPoint(renderer, screen_x, screen_y);
+                        }
+                    }
+                }
+            }
+        }
+
+        SDL_RenderPresent(renderer);
+        SDL_Delay(16); // Cap at roughly 60 FPS to keep your CPU happy
+    }
+
+    // Clean up graphics objects when the window is closed
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
     }
 };
 
@@ -142,7 +244,7 @@ struct CPU {
     
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
-        PC = bus.read(0xFFFC) | (bus.read(0xFFFD) << 8); // Reads cleanly out of translated ROM!
+        PC = bus.read(0xFFFC) | ((word)bus.read(0xFFFD) << 8); // Reads cleanly out of translated ROM!
         SP = 0x00; 
         A = X = Y = 0; 
         D = C = Z = I = B = V = N = 0; 
@@ -189,7 +291,7 @@ struct CPU {
         ticks--;
         return instruction;
     }
-    
+
     byte ReadByte(u32& ticks, word address, Bus & bus) {
         byte data = bus.read(address);
         ticks--;
@@ -202,6 +304,34 @@ struct CPU {
     }
 };
 
+void setup_vram_test_pattern(Bus &bus) {
+    const word vram_start = 0xB000;
+
+    // 1. Fill the entire 4,000 byte screen with a repeating cycle of glyphs
+    for (u32 i = 0; i < 4000; ++i) {
+        // This cycles character indices 0 through 63 repeatedly across the grid
+        bus.write(vram_start + i, static_cast<byte>(i % 64));
+    }
+
+    // 2. Overwrite the very top-left row with a hardcoded message
+    // On a C16 character ROM, standard alphabet characters typically start at index 0x01
+    std::string message = "6502 EMULATOR OK";
+    for (size_t i = 0; i < message.length(); ++i) {
+        char c = message[i];
+        byte char_index = 0;
+
+        if (c >= 'A' && c <= 'Z') {
+            char_index = (c - 'A') + 1; // Map 'A' to 1, 'B' to 2, etc.
+        } else if (c >= '0' && c <= '9') {
+            char_index = (c - '0') + 48; // Common offset for numbers in C64/C16 ROMs
+        } else {
+            char_index = 0x20; // Space / alternative blank index
+        }
+
+        bus.write(vram_start + i, char_index);
+    }
+}
+
 int main() {
     Bus bus;
     CPU cpu;
@@ -210,16 +340,26 @@ int main() {
     
     // Setting up reset vector addresses in our simulated ROM space manually for test purposes
     // (In actual execution, you'd usually call bus.rom.load_from_file("apple2.rom"))
-    bus.rom[0xFFFC - 0xC000] = 0x00; // Low Byte pointing to 0x0100
-    bus.rom[0xFFFD - 0xC000] = 0x01; // High Byte
+    bus.rom.load_from_file("rom.bin");
+    byte low_byte = bus.read(0xFFFC);
+    byte high_byte = bus.read(0xFFFD);
     
+    std::cout << "--- ROM Diagnostics ---" << std::endl;
+    std::cout << "File byte at 0xFFFC (index 0x3FFC): 0x" << std::hex << (int)low_byte << std::endl;
+    std::cout << "File byte at 0xFFFD (index 0x3FFD): 0x" << std::hex << (int)high_byte << std::endl;
+    // Fill VRAM with test indices
+    setup_vram_test_pattern(bus);
+    
+    // Run the tile graphics renderer
+    std::cout << "Rendering 80x50 pixel canvas..." << std::endl;
+    bus.render_screen();
     // Populate an actual program in lower RAM space
-    bus.ram[0x0100] = 0xA9; // INS_LDA_IMM
-    bus.ram[0x0101] = 0x7F; // Value to load
+    //bus.ram[0x0100] = 0xA9; // INS_LDA_IMM
+    //bus.ram[0x0101] = 0x7F; // Value to load
     
     // Fire up the emulation pipeline
-    cpu.reset(bus);
-    cpu.execute(2, bus); // Executes the LDA operation
+    //cpu.reset(bus);
+    //cpu.execute(2, bus); // Executes the LDA operation
     
     return 0;
 }

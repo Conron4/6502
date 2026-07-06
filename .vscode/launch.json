@@ -27,6 +27,11 @@
                     "description": "Set Disassembly Flavor to Intel",
                     "text": "-gdb-set disassembly-flavor intel",
                     "ignoreFailures": true
+                },
+                {
+                    "description": "Include SDL2",
+                    "text": "-lSDL2",
+                    "ignoreFailures": true
                 }
             ]
         }
