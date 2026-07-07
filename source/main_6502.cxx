@@ -255,7 +255,18 @@ struct CPU {
         INS_LDY_ZP  = 0xA4,
         INS_LDY_ZPX = 0xB4,
         INS_LDY_ABS = 0xAC,
-        INS_LDY_ABX = 0xBC;
+        INS_LDY_ABX = 0xBC,
+        INS_STA_ZP  = 0x85,
+        INS_STA_ZPX = 0x95,
+        INS_STA_ABS = 0x8D,
+        INS_STA_ABX = 0x9D,
+        INS_STA_ABY = 0x99,
+        INS_STX_ZP  = 0x86,
+        INS_STX_ZPY = 0x96,
+        INS_STX_ABS = 0x8E,
+        INS_STY_ZP  = 0x84,
+        INS_STY_ZPX = 0x94,
+        INS_STY_ABS = 0x8C;
     
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
@@ -393,6 +404,34 @@ struct CPU {
                     addr |= ((word)fetch(ticks, bus)) << 8; // High byte
                     Y = ReadByte(ticks, addr + X, bus);
                     LDSetStatusFlags(Y);
+                    break;
+                }
+                case INS_STA_ZP: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    WriteByte(ticks, zero_page_addr, A, bus);
+                    break;
+                }
+                case INS_STA_ZPX: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    WriteByte(ticks, zero_page_addr + X, A, bus);
+                    break;
+                }
+                case INS_STA_ABS: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    WriteByte(ticks, addr, A, bus);
+                    break;
+                }
+                case INS_STA_ABX: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    WriteByte(ticks, addr + X, A, bus);
+                    break;
+                }
+                case INS_STA_ABY: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    WriteByte(ticks, addr + Y, A, bus);
                     break;
                 }
                 case INS_JMP_ABS: {
