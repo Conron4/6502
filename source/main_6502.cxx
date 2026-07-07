@@ -245,7 +245,17 @@ struct CPU {
         INS_LDA_ABX = 0xBD,
         INS_LDA_ABY = 0xB9,
         INS_LDA_INX = 0xA1,
-        INS_LDA_INY = 0xB1;
+        INS_LDA_INY = 0xB1,
+        INS_LDX_IMM = 0xA2,
+        INS_LDX_ZP  = 0xA6,
+        INS_LDX_ZPY = 0xB6,
+        INS_LDX_ABS = 0xAE,
+        INS_LDX_ABY = 0xBE,
+        INS_LDY_IMM = 0xA0,
+        INS_LDY_ZP  = 0xA4,
+        INS_LDY_ZPX = 0xB4,
+        INS_LDY_ABS = 0xAC,
+        INS_LDY_ABX = 0xBC;
     
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
@@ -255,9 +265,9 @@ struct CPU {
         D = C = Z = I = B = V = N = 0; 
     }
 
-    void LDASetStatusFlags() {
-        Z = (A == 0);
-        N = (A & 0x80) != 0;
+    void LDSetStatusFlags(register byte value) {
+        Z = (value == 0);
+        N = (value & 0x80) != 0;
     }
 
     void execute(u32 ticks, Bus & bus) {
@@ -267,40 +277,40 @@ struct CPU {
                 case INS_LDA_IMM: {
                     byte value = fetch(ticks, bus);
                     A = value;
-                    LDASetStatusFlags();
+                    LDSetStatusFlags(A);
                     break;
                 }
                 case INS_LDA_ZP: {
                     byte zero_page_addr = fetch(ticks, bus);
                     A = ReadByte(ticks, zero_page_addr, bus);
-                    LDASetStatusFlags();
+                    LDSetStatusFlags(A);
                     break;
                 }
                 case INS_LDA_ZPX: {
                     byte zero_page_addr = fetch(ticks, bus);
                     A = ReadByte(ticks, zero_page_addr + X, bus);
-                    LDASetStatusFlags();
+                    LDSetStatusFlags(A);
                     break;
                 }
                 case INS_LDA_ABS: {
                     word addr = fetch(ticks, bus); // Low byte
                     addr |= ((word)fetch(ticks, bus)) << 8; // High byte
                     A = ReadByte(ticks, addr, bus);
-                    LDASetStatusFlags();
+                    LDSetStatusFlags(A);
                     break;
                 }
                 case INS_LDA_ABX: {
                     word addr = fetch(ticks, bus); // Low byte
                     addr |= ((word)fetch(ticks, bus)) << 8; // High byte
                     A = ReadByte(ticks, addr + X, bus);
-                    LDASetStatusFlags();
+                    LDSetStatusFlags(A);
                     break;
                 }
                 case INS_LDA_ABY: {
                     word addr = fetch(ticks, bus); // Low byte
                     addr |= ((word)fetch(ticks, bus)) << 8; // High byte
                     A = ReadByte(ticks, addr + Y, bus);
-                    LDASetStatusFlags();
+                    LDSetStatusFlags(A);
                     break;
                 }
                 case INS_LDA_INX: {
@@ -309,7 +319,7 @@ struct CPU {
                     byte effective_addr_high = ReadByte(ticks, (zero_page_addr + X + 1) & 0xFF, bus);
                     word effective_addr = effective_addr_low | ((word)effective_addr_high << 8);
                     A = ReadByte(ticks, effective_addr, bus);
-                    LDASetStatusFlags();
+                    LDSetStatusFlags(A);
                     break;
                 }
                 case INS_LDA_INY: {
@@ -318,7 +328,71 @@ struct CPU {
                     byte effective_addr_high = ReadByte(ticks, (zero_page_addr + 1) & 0xFF, bus);
                     word effective_addr = effective_addr_low | ((word)effective_addr_high << 8);
                     A = ReadByte(ticks, effective_addr + Y, bus);
-                    LDASetStatusFlags();
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_LDX_IMM: {
+                    byte value = fetch(ticks, bus);
+                    X = value;
+                    LDSetStatusFlags(X);
+                    break;
+                }
+                case INS_LDX_ZP: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    X = ReadByte(ticks, zero_page_addr, bus);
+                    LDSetStatusFlags(X);
+                    break;
+                }
+                case INS_LDX_ZPY: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    X = ReadByte(ticks, zero_page_addr + Y, bus);
+                    LDSetStatusFlags(X);
+                    break;
+                }
+                case INS_LDX_ABS: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    X = ReadByte(ticks, addr, bus);
+                    LDSetStatusFlags(X);
+                    break;
+                }
+                case INS_LDX_ABY: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    X = ReadByte(ticks, addr + Y, bus);
+                    LDSetStatusFlags(X);
+                    break;
+                }
+                case INS_LDY_IMM: {
+                    byte value = fetch(ticks, bus);
+                    Y = value;
+                    LDSetStatusFlags(Y);
+                    break;
+                }
+                case INS_LDY_ZP: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    Y = ReadByte(ticks, zero_page_addr, bus);
+                    LDSetStatusFlags(Y);
+                    break;
+                }
+                case INS_LDY_ZPX: {     
+                    byte zero_page_addr = fetch(ticks, bus);
+                    Y = ReadByte(ticks, zero_page_addr + X, bus);
+                    LDSetStatusFlags(Y);
+                    break;
+                }
+                case INS_LDY_ABS: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    Y = ReadByte(ticks, addr, bus);
+                    LDSetStatusFlags(Y);
+                    break;
+                }
+                case INS_LDY_ABX: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    Y = ReadByte(ticks, addr + X, bus);
+                    LDSetStatusFlags(Y);
                     break;
                 }
                 case INS_JMP_ABS: {
@@ -387,9 +461,6 @@ int main() {
     
     bus.init();
     
-    // Setting up reset vector addresses in our simulated ROM space manually for test purposes
-    // (In actual execution, you'd usually call bus.rom.load_from_file("apple2.rom"))
-
     if (!bus.rom.load_from_file("rom.bin")) {
         std::cerr << "Failed to load ROM file." << std::endl;
         return 1;
@@ -406,7 +477,7 @@ int main() {
     // Run the tile graphics renderer
     //std::cout << "Rendering 80x50 pixel canvas..." << std::endl;
     //bus.render_screen();
-    // Populate an actual program in lower RAM space
+    // Populate RAM
     bus.ram[0x0024] = 0x10; 
     bus.ram[0x0025] = 0x80;
     bus.ram[0x8010] = 0x18;
