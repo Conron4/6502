@@ -58,8 +58,7 @@ struct Rom {
 
         std::streamsize size = file.tellg();
         if (size != MAX_ROM) {
-            std::cerr << "ROM Error: Size mismatch. Expected " << MAX_ROM 
-                      << " bytes, got " << size << " bytes." << std::endl;
+            std::cerr << "ROM Error: File size is " << size << " bytes, expected " << MAX_ROM << " bytes." << std::endl;
             return false;
         }
 
@@ -178,11 +177,11 @@ struct Bus {
             }
         }
 
-        // Clear display to a retro dark grey background
+        // Clear display to a dark gray background
         SDL_SetRenderDrawColor(renderer, 0x1A, 0x1A, 0x1A, 0xFF);
         SDL_RenderClear(renderer);
 
-        // Set pixel color to classic C16 light green/blue (or whatever color you want)
+        // Set draw color to a bright green for the pixels
         SDL_SetRenderDrawColor(renderer, 0x64, 0xFF, 0x64, 0xFF);
 
         // Unpack memory and draw pixels
@@ -240,7 +239,13 @@ struct CPU {
     static const byte
         INS_JMP_ABS = 0x4C,
         INS_LDA_IMM = 0xA9,
-        INS_LDA_ZP  = 0xA5;
+        INS_LDA_ZP  = 0xA5,
+        INS_LDA_ZPX = 0xB5,
+        INS_LDA_ABS = 0xAD,
+        INS_LDA_ABX = 0xBD,
+        INS_LDA_ABY = 0xB9,
+        INS_LDA_INX = 0xA1,
+        INS_LDA_INY = 0xB1;
     
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
@@ -268,6 +273,51 @@ struct CPU {
                 case INS_LDA_ZP: {
                     byte zero_page_addr = fetch(ticks, bus);
                     A = ReadByte(ticks, zero_page_addr, bus);
+                    LDASetStatusFlags();
+                    break;
+                }
+                case INS_LDA_ZPX: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    A = ReadByte(ticks, zero_page_addr + X, bus);
+                    LDASetStatusFlags();
+                    break;
+                }
+                case INS_LDA_ABS: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    A = ReadByte(ticks, addr, bus);
+                    LDASetStatusFlags();
+                    break;
+                }
+                case INS_LDA_ABX: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    A = ReadByte(ticks, addr + X, bus);
+                    LDASetStatusFlags();
+                    break;
+                }
+                case INS_LDA_ABY: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    A = ReadByte(ticks, addr + Y, bus);
+                    LDASetStatusFlags();
+                    break;
+                }
+                case INS_LDA_INX: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    byte effective_addr_low = ReadByte(ticks, (zero_page_addr + X) & 0xFF, bus);
+                    byte effective_addr_high = ReadByte(ticks, (zero_page_addr + X + 1) & 0xFF, bus);
+                    word effective_addr = effective_addr_low | ((word)effective_addr_high << 8);
+                    A = ReadByte(ticks, effective_addr, bus);
+                    LDASetStatusFlags();
+                    break;
+                }
+                case INS_LDA_INY: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    byte effective_addr_low = ReadByte(ticks, zero_page_addr, bus);
+                    byte effective_addr_high = ReadByte(ticks, (zero_page_addr + 1) & 0xFF, bus);
+                    word effective_addr = effective_addr_low | ((word)effective_addr_high << 8);
+                    A = ReadByte(ticks, effective_addr + Y, bus);
                     LDASetStatusFlags();
                     break;
                 }
@@ -313,8 +363,7 @@ void setup_vram_test_pattern(Bus &bus) {
         bus.write(vram_start + i, static_cast<byte>(i % 64));
     }
 
-    // 2. Overwrite the very top-left row with a hardcoded message
-    // On a C16 character ROM, standard alphabet characters typically start at index 0x01
+    // 2. Write a test message to the top-left corner of the screen
     std::string message = "6502 EMULATOR OK";
     for (size_t i = 0; i < message.length(); ++i) {
         char c = message[i];
@@ -340,7 +389,11 @@ int main() {
     
     // Setting up reset vector addresses in our simulated ROM space manually for test purposes
     // (In actual execution, you'd usually call bus.rom.load_from_file("apple2.rom"))
-    bus.rom.load_from_file("rom.bin");
+
+    if (!bus.rom.load_from_file("rom.bin")) {
+        std::cerr << "Failed to load ROM file." << std::endl;
+        return 1;
+    }
     byte low_byte = bus.read(0xFFFC);
     byte high_byte = bus.read(0xFFFD);
     
@@ -348,18 +401,19 @@ int main() {
     std::cout << "File byte at 0xFFFC (index 0x3FFC): 0x" << std::hex << (int)low_byte << std::endl;
     std::cout << "File byte at 0xFFFD (index 0x3FFD): 0x" << std::hex << (int)high_byte << std::endl;
     // Fill VRAM with test indices
-    setup_vram_test_pattern(bus);
+    //setup_vram_test_pattern(bus);
     
     // Run the tile graphics renderer
-    std::cout << "Rendering 80x50 pixel canvas..." << std::endl;
-    bus.render_screen();
+    //std::cout << "Rendering 80x50 pixel canvas..." << std::endl;
+    //bus.render_screen();
     // Populate an actual program in lower RAM space
-    //bus.ram[0x0100] = 0xA9; // INS_LDA_IMM
-    //bus.ram[0x0101] = 0x7F; // Value to load
-    
+    bus.ram[0x0024] = 0x10; 
+    bus.ram[0x0025] = 0x80;
+    bus.ram[0x8010] = 0x18;
     // Fire up the emulation pipeline
-    //cpu.reset(bus);
-    //cpu.execute(2, bus); // Executes the LDA operation
+    cpu.reset(bus);
+    cpu.X = 0x04; // Set X register to 5 for the LDA ZPX test
+    cpu.execute(5, bus); // Executes the LDA operation
     
     return 0;
 }
