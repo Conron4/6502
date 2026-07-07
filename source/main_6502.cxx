@@ -276,9 +276,15 @@ struct CPU {
         D = C = Z = I = B = V = N = 0; 
     }
 
-    void LDSetStatusFlags(register byte value) {
+    void LDSetStatusFlags(byte value) {
         Z = (value == 0);
         N = (value & 0x80) != 0;
+    }
+    word zeropage_bug(word addr) {
+        if (addr > 0xFF){
+            addr = addr & 0xFF; // Wrap around to zero page
+        }
+        return addr;
     }
 
     void execute(u32 ticks, Bus & bus) {
@@ -299,7 +305,8 @@ struct CPU {
                 }
                 case INS_LDA_ZPX: {
                     byte zero_page_addr = fetch(ticks, bus);
-                    A = ReadByte(ticks, zero_page_addr + X, bus);
+                    zero_page_addr = zeropage_bug(zero_page_addr + X);
+                    A = ReadByte(ticks, zero_page_addr, bus);
                     LDSetStatusFlags(A);
                     break;
                 }
@@ -356,7 +363,8 @@ struct CPU {
                 }
                 case INS_LDX_ZPY: {
                     byte zero_page_addr = fetch(ticks, bus);
-                    X = ReadByte(ticks, zero_page_addr + Y, bus);
+                    zero_page_addr = zeropage_bug(zero_page_addr + Y);
+                    X = ReadByte(ticks, zero_page_addr, bus);
                     LDSetStatusFlags(X);
                     break;
                 }
@@ -388,7 +396,8 @@ struct CPU {
                 }
                 case INS_LDY_ZPX: {     
                     byte zero_page_addr = fetch(ticks, bus);
-                    Y = ReadByte(ticks, zero_page_addr + X, bus);
+                    zero_page_addr = zeropage_bug(zero_page_addr + X);
+                    Y = ReadByte(ticks, zero_page_addr, bus);
                     LDSetStatusFlags(Y);
                     break;
                 }
@@ -413,7 +422,8 @@ struct CPU {
                 }
                 case INS_STA_ZPX: {
                     byte zero_page_addr = fetch(ticks, bus);
-                    WriteByte(ticks, zero_page_addr + X, A, bus);
+                    zero_page_addr = zeropage_bug(zero_page_addr + X);
+                    WriteByte(ticks, zero_page_addr, A, bus);
                     break;
                 }
                 case INS_STA_ABS: {
@@ -517,12 +527,12 @@ int main() {
     //std::cout << "Rendering 80x50 pixel canvas..." << std::endl;
     //bus.render_screen();
     // Populate RAM
-    bus.ram[0x0024] = 0x10; 
-    bus.ram[0x0025] = 0x80;
-    bus.ram[0x8010] = 0x18;
+    //bus.ram[0x0024] = 0x10; 
+    //bus.ram[0x0025] = 0x80;
+    //bus.ram[0x8010] = 0x18;
     // Fire up the emulation pipeline
     cpu.reset(bus);
-    cpu.X = 0x04; // Set X register to 5 for the LDA ZPX test
+    //cpu.X = 0x04; // Set X register to 5 for the LDA ZPX test
     cpu.execute(5, bus); // Executes the LDA operation
     
     return 0;
