@@ -266,7 +266,11 @@ struct CPU {
         INS_STX_ABS = 0x8E,
         INS_STY_ZP  = 0x84,
         INS_STY_ZPX = 0x94,
-        INS_STY_ABS = 0x8C;
+        INS_STY_ABS = 0x8C,
+        INS_TAX      = 0xAA,
+        INS_TAY      = 0xA8,
+        INS_TXA      = 0x8A,
+        INS_TYA      = 0x98;
     
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
@@ -442,6 +446,60 @@ struct CPU {
                     word addr = fetch(ticks, bus); // Low byte
                     addr |= ((word)fetch(ticks, bus)) << 8; // High byte
                     WriteByte(ticks, addr + Y, A, bus);
+                    break;
+                }
+                case INS_STX_ZP: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    WriteByte(ticks, zero_page_addr, X, bus);
+                    break;
+                }
+                case INS_STX_ZPY: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    zero_page_addr = zeropage_bug(zero_page_addr + Y);
+                    WriteByte(ticks, zero_page_addr, X, bus);
+                    break;
+                }
+                case INS_STX_ABS: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    WriteByte(ticks, addr, X, bus);
+                    break;
+                }
+                case INS_STY_ZP: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    WriteByte(ticks, zero_page_addr, Y, bus);
+                    break;
+                }
+                case INS_STY_ZPX: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    zero_page_addr = zeropage_bug(zero_page_addr + X);
+                    WriteByte(ticks, zero_page_addr, Y, bus);
+                    break;
+                }
+                case INS_STY_ABS: {
+                    word addr = fetch(ticks, bus); // Low byte
+                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    WriteByte(ticks, addr, Y, bus);
+                    break;
+                }
+                case INS_TAX: {
+                    X = A;
+                    LDSetStatusFlags(X);
+                    break;
+                }
+                case INS_TAY: {
+                    Y = A;
+                    LDSetStatusFlags(Y);
+                    break;
+                }
+                case INS_TXA: {
+                    A = X;
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_TYA: {
+                    A = Y;
+                    LDSetStatusFlags(A);
                     break;
                 }
                 case INS_JMP_ABS: {
