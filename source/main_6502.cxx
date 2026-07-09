@@ -234,10 +234,15 @@ struct CPU {
     byte B : 1; // Break Command
     byte V : 1; // Overflow Flag
     byte N : 1; // Negative Flag
+    byte processorstatus() const {
+        return (N << 7) | (V << 6) | (1 << 5) | (B << 4) | (D << 3) | (I << 2) | (Z << 1) | C;
+    }
 
     // Opcodes
     static const byte
         INS_JMP_ABS = 0x4C,
+        // Load and Store Instructions
+        // Load A
         INS_LDA_IMM = 0xA9,
         INS_LDA_ZP  = 0xA5,
         INS_LDA_ZPX = 0xB5,
@@ -246,36 +251,49 @@ struct CPU {
         INS_LDA_ABY = 0xB9,
         INS_LDA_INX = 0xA1,
         INS_LDA_INY = 0xB1,
+        // Load X
         INS_LDX_IMM = 0xA2,
         INS_LDX_ZP  = 0xA6,
         INS_LDX_ZPY = 0xB6,
         INS_LDX_ABS = 0xAE,
         INS_LDX_ABY = 0xBE,
+        // Load Y
         INS_LDY_IMM = 0xA0,
         INS_LDY_ZP  = 0xA4,
         INS_LDY_ZPX = 0xB4,
         INS_LDY_ABS = 0xAC,
         INS_LDY_ABX = 0xBC,
+        // Store A
         INS_STA_ZP  = 0x85,
         INS_STA_ZPX = 0x95,
         INS_STA_ABS = 0x8D,
         INS_STA_ABX = 0x9D,
         INS_STA_ABY = 0x99,
+        // Store X
         INS_STX_ZP  = 0x86,
         INS_STX_ZPY = 0x96,
         INS_STX_ABS = 0x8E,
+        // Store Y
         INS_STY_ZP  = 0x84,
         INS_STY_ZPX = 0x94,
         INS_STY_ABS = 0x8C,
+        // Transfer Instructions
         INS_TAX      = 0xAA,
         INS_TAY      = 0xA8,
         INS_TXA      = 0x8A,
-        INS_TYA      = 0x98;
+        INS_TYA      = 0x98,
+        // Stack Instructions
+        INS_TSX      = 0xBA,
+        INS_TXS      = 0x9A,
+        INS_PHA      = 0x48,
+        INS_PHP      = 0x08,
+        INS_PLA      = 0x68,
+        INS_PLP      = 0x28;
     
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
         PC = bus.read(0xFFFC) | ((word)bus.read(0xFFFD) << 8); // Reads cleanly out of translated ROM!
-        SP = 0x00; 
+        SP = 0xFF; 
         A = X = Y = 0; 
         D = C = Z = I = B = V = N = 0; 
     }
@@ -362,12 +380,14 @@ struct CPU {
                 case INS_LDX_ZP: {
                     byte zero_page_addr = fetch(ticks, bus);
                     X = ReadByte(ticks, zero_page_addr, bus);
+                    break;
                     LDSetStatusFlags(X);
                     break;
                 }
                 case INS_LDX_ZPY: {
                     byte zero_page_addr = fetch(ticks, bus);
                     zero_page_addr = zeropage_bug(zero_page_addr + Y);
+                    break;
                     X = ReadByte(ticks, zero_page_addr, bus);
                     LDSetStatusFlags(X);
                     break;
@@ -502,6 +522,44 @@ struct CPU {
                     LDSetStatusFlags(A);
                     break;
                 }
+                case INS_TSX: {
+                    X = SP;
+                    LDSetStatusFlags(X);
+                    break;
+                }
+                case INS_TXS: {
+                    SP = X;
+                    break;
+                }
+                case INS_PHA: {
+                    WriteByte(ticks, SP + 0x100, A, bus);
+                    SP--;
+                    break;
+                }
+                case INS_PHP: {
+                    byte PS = processorstatus();
+                    WriteByte(ticks, SP + 0x100, PS, bus);
+                    SP--;
+                    break;
+                }
+                case INS_PLA: {
+                    A = ReadByte(ticks, SP + 0x100, bus);
+                    LDSetStatusFlags(A);
+                    SP++;
+                    break;
+                }
+                case INS_PLP: {
+                    byte PS = ReadByte(ticks, SP + 0x100, bus);
+                    N = (PS >> 7) & 1;
+                    V = (PS >> 6) & 1;
+                    B = (PS >> 4) & 1;
+                    D = (PS >> 3) & 1;
+                    I = (PS >> 2) & 1;
+                    Z = (PS >> 1) & 1;
+                    C = (PS >> 0) & 1;
+                    SP++;
+                    break;
+                }
                 case INS_JMP_ABS: {
                     word addr = fetch(ticks, bus); // Low byte
                     addr |= ((word)fetch(ticks, bus)) << 8; // High byte
@@ -591,7 +649,7 @@ int main() {
     // Fire up the emulation pipeline
     cpu.reset(bus);
     //cpu.X = 0x04; // Set X register to 5 for the LDA ZPX test
-    cpu.execute(5, bus); // Executes the LDA operation
+    cpu.execute(4, bus); // Executes the LDA operation
     
     return 0;
 }
