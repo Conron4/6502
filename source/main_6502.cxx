@@ -288,7 +288,37 @@ struct CPU {
         INS_PHA      = 0x48,
         INS_PHP      = 0x08,
         INS_PLA      = 0x68,
-        INS_PLP      = 0x28;
+        INS_PLP      = 0x28,
+        // Logical AND
+        INS_AND_IMM  = 0x29,
+        INS_AND_ZP   = 0x25,
+        INS_AND_ZPX  = 0x35,
+        INS_AND_ABS  = 0x2D,
+        INS_AND_ABX  = 0x3D,
+        INS_AND_ABY  = 0x39,
+        INS_AND_INX  = 0x21,
+        INS_AND_INY  = 0x31,
+        // Exclusive OR
+        INS_EOR_IMM  = 0x49,
+        INS_EOR_ZP   = 0x45,
+        INS_EOR_ZPX  = 0x55,
+        INS_EOR_ABS  = 0x4D,
+        INS_EOR_ABX  = 0x5D,
+        INS_EOR_ABY  = 0x59,
+        INS_EOR_INX  = 0x41,
+        INS_EOR_INY  = 0x51,
+        // Inclusive OR
+        INS_ORA_IMM  = 0x09,
+        INS_ORA_ZP   = 0x05,
+        INS_ORA_ZPX  = 0x15,
+        INS_ORA_ABS  = 0x0D,
+        INS_ORA_ABX  = 0x1D,
+        INS_ORA_ABY  = 0x19,
+        INS_ORA_INX  = 0x01,
+        INS_ORA_INY  = 0x11,
+        // Bit Test
+        INS_BIT_ZP   = 0x24,
+        INS_BIT_ABS  = 0x2C;
     
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
@@ -301,12 +331,6 @@ struct CPU {
     void LDSetStatusFlags(byte value) {
         Z = (value == 0);
         N = (value & 0x80) != 0;
-    }
-    word zeropage_bug(word addr) {
-        if (addr > 0xFF){
-            addr = addr & 0xFF; // Wrap around to zero page
-        }
-        return addr;
     }
 
     void execute(u32 ticks, Bus & bus) {
@@ -327,7 +351,7 @@ struct CPU {
                 }
                 case INS_LDA_ZPX: {
                     byte zero_page_addr = fetch(ticks, bus);
-                    zero_page_addr = zeropage_bug(zero_page_addr + X);
+                    zero_page_addr = zero_page_addr + X;
                     A = ReadByte(ticks, zero_page_addr, bus);
                     LDSetStatusFlags(A);
                     break;
@@ -354,10 +378,7 @@ struct CPU {
                     break;
                 }
                 case INS_LDA_INX: {
-                    byte zero_page_addr = fetch(ticks, bus);
-                    byte effective_addr_low = ReadByte(ticks, (zero_page_addr + X) & 0xFF, bus);
-                    byte effective_addr_high = ReadByte(ticks, (zero_page_addr + X + 1) & 0xFF, bus);
-                    word effective_addr = effective_addr_low | ((word)effective_addr_high << 8);
+                    word effective_addr = indexed_indirect(ticks, fetch(ticks, bus), bus);
                     A = ReadByte(ticks, effective_addr, bus);
                     LDSetStatusFlags(A);
                     break;
@@ -380,14 +401,12 @@ struct CPU {
                 case INS_LDX_ZP: {
                     byte zero_page_addr = fetch(ticks, bus);
                     X = ReadByte(ticks, zero_page_addr, bus);
-                    break;
                     LDSetStatusFlags(X);
                     break;
                 }
                 case INS_LDX_ZPY: {
                     byte zero_page_addr = fetch(ticks, bus);
-                    zero_page_addr = zeropage_bug(zero_page_addr + Y);
-                    break;
+                    zero_page_addr = zero_page_addr + Y;
                     X = ReadByte(ticks, zero_page_addr, bus);
                     LDSetStatusFlags(X);
                     break;
@@ -420,7 +439,7 @@ struct CPU {
                 }
                 case INS_LDY_ZPX: {     
                     byte zero_page_addr = fetch(ticks, bus);
-                    zero_page_addr = zeropage_bug(zero_page_addr + X);
+                    zero_page_addr = zero_page_addr + X;
                     Y = ReadByte(ticks, zero_page_addr, bus);
                     LDSetStatusFlags(Y);
                     break;
@@ -446,7 +465,7 @@ struct CPU {
                 }
                 case INS_STA_ZPX: {
                     byte zero_page_addr = fetch(ticks, bus);
-                    zero_page_addr = zeropage_bug(zero_page_addr + X);
+                    zero_page_addr = zero_page_addr + X;
                     WriteByte(ticks, zero_page_addr, A, bus);
                     break;
                 }
@@ -475,7 +494,7 @@ struct CPU {
                 }
                 case INS_STX_ZPY: {
                     byte zero_page_addr = fetch(ticks, bus);
-                    zero_page_addr = zeropage_bug(zero_page_addr + Y);
+                    zero_page_addr = zero_page_addr + Y;
                     WriteByte(ticks, zero_page_addr, X, bus);
                     break;
                 }
@@ -492,7 +511,7 @@ struct CPU {
                 }
                 case INS_STY_ZPX: {
                     byte zero_page_addr = fetch(ticks, bus);
-                    zero_page_addr = zeropage_bug(zero_page_addr + X);
+                    zero_page_addr = zero_page_addr + X;
                     WriteByte(ticks, zero_page_addr, Y, bus);
                     break;
                 }
@@ -560,9 +579,193 @@ struct CPU {
                     SP++;
                     break;
                 }
+                case INS_AND_IMM: {
+                    byte opr = fetch(ticks, bus);
+                    A = A&opr;
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_AND_ZP: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    A = A&ReadByte(ticks, zero_page_addr, bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_AND_ZPX: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    zero_page_addr = zero_page_addr + X;
+                    A = A&ReadByte(ticks,zero_page_addr, bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_AND_ABS: {
+                    word addr = wordfetch(ticks, bus);
+                    A = A&ReadByte(ticks, addr, bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_AND_ABX: {
+                    word addr = wordfetch(ticks, bus);
+                    addr = addr + X;
+                    A = A&ReadByte(ticks, addr, bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_AND_ABY: {
+                    word addr = wordfetch(ticks, bus);
+                    addr = addr + Y;
+                    A = A&ReadByte(ticks, addr, bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_AND_INX: {
+                    word effective_addr = indexed_indirect(ticks, fetch(ticks, bus), bus);
+                    A = A&ReadByte(ticks, effective_addr, bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_AND_INY: {
+                    word effective_addr = indirect_indexed(ticks, fetch(ticks, bus), bus);
+                    A = A&ReadByte(ticks, effective_addr, bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_EOR_IMM: {
+                    byte opr = fetch(ticks, bus);
+                    A = A^opr;
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_EOR_ZP: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    A = A^ReadByte(ticks,zero_page_addr,bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_EOR_ZPX: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    zero_page_addr = zero_page_addr + X;
+                    A = A^ReadByte(ticks,zero_page_addr,bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_EOR_ABS: {
+                    word addr = wordfetch(ticks,bus);
+                    A = A^ReadByte(ticks,addr,bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_EOR_ABX: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + X;
+                    A = A^ReadByte(ticks,addr,bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_EOR_ABY: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + Y;
+                    A = A^ReadByte(ticks, addr,bus);
+                    LDSetStatusFlags(Y);
+                    break;
+                }
+                case INS_EOR_INX: {
+                    word effective_addr = indexed_indirect(ticks, fetch(ticks, bus), bus);
+                    A = A^ReadByte(ticks, effective_addr, bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_EOR_INY: {
+                    word effective_addr = indirect_indexed(ticks, fetch(ticks, bus), bus);
+                    A = A^ReadByte(ticks, effective_addr, bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_ORA_IMM:{
+                    byte opr = fetch(ticks, bus);
+                    A = A|opr;
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_ORA_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    A = A|ReadByte(ticks,zero_page_addr,bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_ORA_ZPX: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    zero_page_addr = zero_page_addr+X;
+                    A = A|ReadByte(ticks,zero_page_addr,bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_ORA_ABS: {
+                    word addr = wordfetch(ticks,bus);
+                    A = A|ReadByte(ticks,addr,bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_ORA_ABX: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + X;
+                    A = A|ReadByte(ticks,addr,bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_ORA_ABY: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + X;
+                    A = A|ReadByte(ticks,addr,bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_ORA_INX: {
+                    word effective_addr = indexed_indirect(ticks, fetch(ticks, bus), bus);
+                    A = A|ReadByte(ticks, effective_addr, bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_ORA_INY: {
+                    word effective_addr = indirect_indexed(ticks, fetch(ticks, bus), bus);
+                    A = A|ReadByte(ticks, effective_addr, bus);
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_BIT_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    byte bittest = A&ReadByte(ticks,zero_page_addr,bus);
+                    if (bittest == 0){
+                        Z = 1;
+                        break;
+                    }
+                    if (bittest & (1 << 7) == 1) {
+                        N = 1;
+                    }
+                    if (bittest & (1 << 6) == 1) {
+                        V = 1;
+                    }
+                    break;
+
+                }
+                case INS_BIT_ABS: {
+                    word addr = wordfetch(ticks,bus);
+                    byte bittest = A&ReadByte(ticks,addr,bus);
+                    if (bittest == 0){
+                        Z = 1;
+                        break;
+                    }
+                    if (bittest & (1 << 7) == 1) {
+                        N = 1;
+                    }
+                    if (bittest & (1 << 6) == 1) {
+                        V = 1;
+                    }
+                    break;
+
+                }
                 case INS_JMP_ABS: {
-                    word addr = fetch(ticks, bus); // Low byte
-                    addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+                    word addr = wordfetch(ticks, bus);
                     PC = addr;
                     break;
                 }
@@ -579,6 +782,38 @@ struct CPU {
         PC++;
         ticks--;
         return instruction;
+    }
+    word wordfetch(u32 & ticks, Bus & bus) {
+        word addr = fetch(ticks, bus); // Low byte
+        addr |= ((word)fetch(ticks, bus)) << 8; // High byte
+        return addr;
+    }
+
+    // ($nn, X)
+    word indexed_indirect(u32 & ticks, word addr, Bus & bus) {
+        byte base_zp_addr = (byte)(addr & 0xFF); 
+
+        byte low_zp = (base_zp_addr + X) & 0xFF;
+        byte effective_addr_low = ReadByte(ticks, low_zp, bus);
+
+        byte high_zp = (base_zp_addr + X + 1) & 0xFF;
+        byte effective_addr_high = ReadByte(ticks, high_zp, bus);
+
+        return effective_addr_low | ((word)effective_addr_high << 8);
+    }
+
+    // ($nn),Y
+    word indirect_indexed(u32 & ticks, word addr, Bus & bus) {
+        byte base_zp_addr = (byte)(addr & 0xFF); // Ensure it's treated as a ZP byte
+
+        byte effective_addr_low = ReadByte(ticks, base_zp_addr, bus);
+        // Wrap high byte read to zero page if base_zp_addr is 0xFF
+        byte effective_addr_high = ReadByte(ticks, (base_zp_addr + 1) & 0xFF, bus); 
+    
+        word base_address = effective_addr_low | ((word)effective_addr_high << 8);
+    
+        // Add Y to the 16-bit base address here!
+        return base_address + Y; 
     }
 
     byte ReadByte(u32& ticks, word address, Bus & bus) {
