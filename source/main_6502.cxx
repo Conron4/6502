@@ -490,11 +490,8 @@ struct CPU {
                     break;
                 }
                 case INS_LDA_INY: {
-                    byte zero_page_addr = fetch(ticks, bus);
-                    byte effective_addr_low = ReadByte(ticks, zero_page_addr, bus);
-                    byte effective_addr_high = ReadByte(ticks, (zero_page_addr + 1) & 0xFF, bus);
-                    word effective_addr = effective_addr_low | ((word)effective_addr_high << 8);
-                    A = ReadByte(ticks, effective_addr + Y, bus);
+                    word effective_addr = indirect_indexed(ticks, fetch(ticks, bus), bus);
+                    A = ReadByte(ticks, effective_addr, bus);
                     LDSetStatusFlags(A);
                     break;
                 }
@@ -662,18 +659,19 @@ struct CPU {
                     break;
                 }
                 case INS_PHP: {
-                    byte PS = processorstatus();
+                    byte PS = processorstatus() | 0x10;
                     WriteByte(ticks, SP + 0x100, PS, bus);
                     SP--;
                     break;
                 }
                 case INS_PLA: {
+                    SP++;
                     A = ReadByte(ticks, SP + 0x100, bus);
                     LDSetStatusFlags(A);
-                    SP++;
                     break;
                 }
                 case INS_PLP: {
+                    SP++;
                     byte PS = ReadByte(ticks, SP + 0x100, bus);
                     N = (PS >> 7) & 1;
                     V = (PS >> 6) & 1;
@@ -682,7 +680,6 @@ struct CPU {
                     I = (PS >> 2) & 1;
                     Z = (PS >> 1) & 1;
                     C = (PS >> 0) & 1;
-                    SP++;
                     break;
                 }
                 case INS_AND_IMM: {
@@ -772,7 +769,7 @@ struct CPU {
                     word addr = wordfetch(ticks,bus);
                     addr = addr + Y;
                     A = A^ReadByte(ticks, addr,bus);
-                    LDSetStatusFlags(Y);
+                    LDSetStatusFlags(A);
                     break;
                 }
                 case INS_EOR_INX: {
@@ -821,7 +818,7 @@ struct CPU {
                 }
                 case INS_ORA_ABY: {
                     word addr = wordfetch(ticks,bus);
-                    addr = addr + X;
+                    addr = addr + Y;
                     A = A|ReadByte(ticks,addr,bus);
                     LDSetStatusFlags(A);
                     break;
@@ -840,33 +837,19 @@ struct CPU {
                 }
                 case INS_BIT_ZP: {
                     byte zero_page_addr = fetch(ticks,bus);
-                    byte bittest = A&ReadByte(ticks,zero_page_addr,bus);
-                    if (bittest == 0){
-                        Z = 1;
-                        break;
-                    }
-                    if (bittest & (1 << 7) == 1) {
-                        N = 1;
-                    }
-                    if (bittest & (1 << 6) == 1) {
-                        V = 1;
-                    }
+                    byte value = ReadByte(ticks,zero_page_addr,bus);
+                    Z = ((A & value) == 0);
+                    N = (value >> 7) & 1;
+                    V = (value >> 6) & 1;
                     break;
 
                 }
                 case INS_BIT_ABS: {
                     word addr = wordfetch(ticks,bus);
-                    byte bittest = A&ReadByte(ticks,addr,bus);
-                    if (bittest == 0){
-                        Z = 1;
-                        break;
-                    }
-                    if (bittest & (1 << 7) == 1) {
-                        N = 1;
-                    }
-                    if (bittest & (1 << 6) == 1) {
-                        V = 1;
-                    }
+                    byte value = ReadByte(ticks,addr,bus);
+                    Z = ((A & value) == 0);
+                    N = (value >> 7) & 1;
+                    V = (value >> 6) & 1;
                     break;
 
                 }
@@ -1169,7 +1152,7 @@ struct CPU {
                 case INS_INC_ZP: {
                     byte zero_page_addr = fetch(ticks,bus);
                     byte inc_tmp = ReadByte(ticks, zero_page_addr, bus);
-                    inc_tmp = inc_tmp++;
+                    inc_tmp++;
                     LDSetStatusFlags(inc_tmp);
                     WriteByte(ticks, zero_page_addr,inc_tmp,bus);
                     break;
@@ -1178,7 +1161,7 @@ struct CPU {
                     byte zero_page_addr = fetch(ticks, bus);
                     zero_page_addr = zero_page_addr + X;
                     byte inc_tmp = ReadByte(ticks, zero_page_addr, bus);
-                    inc_tmp = inc_tmp++;
+                    inc_tmp++;
                     LDSetStatusFlags(inc_tmp);
                     WriteByte(ticks, zero_page_addr, inc_tmp, bus);
                     break;
@@ -1186,7 +1169,7 @@ struct CPU {
                 case INS_INC_ABS: {
                     word addr = wordfetch(ticks, bus);
                     byte inc_tmp = ReadByte(ticks, addr, bus);
-                    inc_tmp = inc_tmp++;
+                    inc_tmp++;
                     LDSetStatusFlags(inc_tmp);
                     WriteByte(ticks, addr, inc_tmp, bus);
                     break;
@@ -1195,25 +1178,25 @@ struct CPU {
                     word addr = wordfetch(ticks,bus);
                     addr = addr + X;
                     byte inc_tmp = ReadByte(ticks,addr,bus);
-                    inc_tmp = inc_tmp++;
+                    inc_tmp++;
                     LDSetStatusFlags(inc_tmp);
                     WriteByte(ticks, addr, inc_tmp, bus);
                     break;
                 }
                 case INS_INX: {
-                    X = X++;
+                    X++;
                     LDSetStatusFlags(X);
                     break;
                 }
                 case INS_INY: {
-                    Y = Y++;
+                    Y++;
                     LDSetStatusFlags(Y);
                     break;
                 }
                 case INS_DEC_ZP: {
                     byte zero_page_addr = fetch(ticks,bus);
                     byte dec_tmp = ReadByte(ticks, zero_page_addr, bus);
-                    dec_tmp = dec_tmp--;
+                    dec_tmp--;
                     LDSetStatusFlags(dec_tmp);
                     WriteByte(ticks, zero_page_addr,dec_tmp,bus);
                     break;
@@ -1222,7 +1205,7 @@ struct CPU {
                     byte zero_page_addr = fetch(ticks,bus);
                     zero_page_addr = zero_page_addr + X;
                     byte dec_tmp = ReadByte(ticks, zero_page_addr, bus);
-                    dec_tmp = dec_tmp--;
+                    dec_tmp--;
                     LDSetStatusFlags(dec_tmp);
                     WriteByte(ticks, zero_page_addr,dec_tmp,bus);
                     break;
@@ -1230,7 +1213,7 @@ struct CPU {
                 case INS_DEC_ABS: {
                     word addr = wordfetch(ticks, bus);
                     byte dec_tmp = ReadByte(ticks, addr, bus);
-                    dec_tmp = dec_tmp--;
+                    dec_tmp--;
                     LDSetStatusFlags(dec_tmp);
                     WriteByte(ticks, addr, dec_tmp, bus);
                     break;
@@ -1239,18 +1222,18 @@ struct CPU {
                     word addr = wordfetch(ticks, bus);
                     addr = addr + X;
                     byte dec_tmp = ReadByte(ticks, addr, bus);
-                    dec_tmp = dec_tmp--;
+                    dec_tmp--;
                     LDSetStatusFlags(dec_tmp);
                     WriteByte(ticks, addr, dec_tmp, bus);
                     break;
                 }
                 case INS_DEX: {
-                    X = X--;
+                    X--;
                     LDSetStatusFlags(X);
                     break;
                 }
                 case INS_DEY: {
-                    Y = Y--;
+                    Y--;
                     LDSetStatusFlags(Y);
                     break;
                 }
@@ -1357,7 +1340,7 @@ struct CPU {
                     tmp = tmp << 1;
                     tmp |= C;
                     C = tmpC;
-                    WriteByte(ticks, tmp, zero_page_addr, bus);
+                    WriteByte(ticks, zero_page_addr, tmp, bus);
                     LDSetStatusFlags(tmp);
                     break;
                 }
@@ -1369,30 +1352,30 @@ struct CPU {
                     tmp = tmp << 1;
                     tmp |= C;
                     C = tmpC;
-                    WriteByte(ticks, tmp, zero_page_addr, bus);
+                    WriteByte(ticks, zero_page_addr, tmp, bus);
                     LDSetStatusFlags(tmp);
                     break;
                 }
                 case INS_ROL_ABS: {
-                    byte addr = wordfetch(ticks,bus);
+                    word addr = wordfetch(ticks,bus);
                     byte tmp = ReadByte(ticks,addr,bus);
                     byte tmpC = (tmp >> 7) & 1;
                     tmp = tmp << 1;
                     tmp |= C;
                     C = tmpC;
-                    WriteByte(ticks, tmp, addr, bus);
+                    WriteByte(ticks, addr, tmp, bus);
                     LDSetStatusFlags(tmp);
                     break;
                 }
                 case INS_ROL_ABX: {
-                    byte addr = wordfetch(ticks,bus);
+                    word addr = wordfetch(ticks,bus);
                     addr = addr + X;
                     byte tmp = ReadByte(ticks,addr,bus);
                     byte tmpC = (tmp >> 7) & 1;
                     tmp = tmp << 1;
                     tmp |= C;
                     C = tmpC;
-                    WriteByte(ticks, tmp, addr, bus);
+                    WriteByte(ticks, addr, tmp, bus);
                     LDSetStatusFlags(tmp);
                     break;
                 }
@@ -1411,7 +1394,7 @@ struct CPU {
                     tmp = tmp >> 1;
                     tmp |= (C << 7);
                     C = tmpC;
-                    WriteByte(ticks, tmp, zero_page_addr, bus);
+                    WriteByte(ticks, zero_page_addr, tmp, bus);
                     LDSetStatusFlags(tmp);
                     break;
                 }
@@ -1423,7 +1406,7 @@ struct CPU {
                     tmp = tmp >> 1;
                     tmp |= (C << 7);
                     C = tmpC;
-                    WriteByte(ticks, tmp, zero_page_addr, bus);
+                    WriteByte(ticks, zero_page_addr, tmp, bus);
                     LDSetStatusFlags(tmp);
                     break;
                 }
@@ -1434,7 +1417,7 @@ struct CPU {
                     tmp = tmp >> 1;
                     tmp |= (C << 7);
                     C = tmpC;
-                    WriteByte(ticks, tmp, addr, bus);
+                    WriteByte(ticks, addr, tmp, bus);
                     LDSetStatusFlags(tmp);
                     break;
                 }
@@ -1446,7 +1429,7 @@ struct CPU {
                     tmp = tmp >> 1;
                     tmp |= (C << 7);
                     C = tmpC;
-                    WriteByte(ticks, tmp, addr, bus);
+                    WriteByte(ticks, addr, tmp, bus);
                     LDSetStatusFlags(tmp);
                     break;
                 }
@@ -1457,28 +1440,17 @@ struct CPU {
                 }
                 case INS_JMP_IND: {
                     word addr = wordfetch(ticks, bus);
-                    PC = ReadByte(ticks, addr, bus);
+                    PC = ReadWordWithPageWrapBug(ticks, addr, bus);
                     break;
                 }
                 case INS_JSR_ABS: {
-                    word vector_addr = wordfetch(ticks, bus);
-    
-                    byte low = ReadByte(ticks, vector_addr, bus);
-                    word high_addr;
-
-                    // Check if the vector address ends in 0xFF (Page Boundary Bug)
-                    if ((vector_addr & 0x00FF) == 0x00FF) {
-                    // Wrap around to the beginning of the SAME page instead of crossing pages
-                        high_addr = vector_addr & 0xFF00; 
-                    } else {
-                    // Normal behavior: Read from the very next byte in memory
-                        high_addr = vector_addr + 1;
-                    }
-
-                    byte high = ReadByte(ticks, high_addr, bus);
-    
-                    // Combine them to form the final target Program Counter
-                    PC = low | ((word)high << 8);
+                    word target_addr = wordfetch(ticks, bus);
+                    word return_addr = PC - 1;
+                    WriteByte(ticks, 0x0100 + SP, (return_addr >> 8) & 0xFF, bus);
+                    SP--;
+                    WriteByte(ticks, 0x0100 + SP, return_addr & 0xFF, bus);
+                    SP--;
+                    PC = target_addr;
                     break;
                 }
                 case INS_RTS_IMP: {
@@ -1492,51 +1464,35 @@ struct CPU {
                     break;
                 }
                 case INS_BCC: {
-                    if (C != 1) {
-                        PC = wordfetch(ticks,bus);
-                    }
+                    branch_relative(ticks, bus, C == 0);
                     break;
                 }
                 case INS_BCS: {
-                    if (C != 0) {
-                        PC = wordfetch(ticks,bus);
-                    }
+                    branch_relative(ticks, bus, C != 0);
                     break;
                 }
                 case INS_BEQ: {
-                    if (Z != 0) {
-                        PC = wordfetch(ticks,bus);
-                    }
+                    branch_relative(ticks, bus, Z != 0);
                     break;
                 }
                 case INS_BMI: {
-                    if (N != 0) {
-                        PC = wordfetch(ticks,bus);
-                    }
+                    branch_relative(ticks, bus, N != 0);
                     break;
                 }
                 case INS_BNE: {
-                    if (Z != 1) {
-                        PC = wordfetch(ticks,bus);
-                    }
+                    branch_relative(ticks, bus, Z == 0);
                     break;
                 }
                 case INS_BPL: {
-                    if (N != 1) {
-                        PC = wordfetch(ticks,bus);
-                    }
+                    branch_relative(ticks, bus, N == 0);
                     break;
                 }
                 case INS_BVC: {
-                    if (V != 1) {
-                        PC = wordfetch(ticks,bus);
-                    }
+                    branch_relative(ticks, bus, V == 0);
                     break;
                 }
                 case INS_BVS: {
-                    if (V != 0) {
-                        PC = wordfetch(ticks,bus);
-                    }
+                    branch_relative(ticks, bus, V != 0);
                     break;
                 }
                 case INS_CLC: {
@@ -1570,15 +1526,15 @@ struct CPU {
                 case INS_BRK: {
                     PC++;
                     
-                    WriteByte(ticks, (PC >> 8) & 0xFF, 0x0100 + SP, bus);
+                    WriteByte(ticks, 0x0100 + SP, (PC >> 8) & 0xFF, bus);
                     SP--;
 
                     
-                    WriteByte(ticks, PC & 0xFF, 0x0100 + SP, bus);
+                    WriteByte(ticks, 0x0100 + SP, PC & 0xFF, bus);
                     SP--;
                     
                     byte stack_P = processorstatus() | 0x10 | 0x20; 
-                    WriteByte(ticks, stack_P, 0x0100 + SP, bus);
+                    WriteByte(ticks, 0x0100 + SP, stack_P, bus);
                     SP--;
                     I = 1;
                     byte target_low = ReadByte(ticks, 0xFFFE, bus);
@@ -1588,7 +1544,6 @@ struct CPU {
                     break;
                 }
                 case INS_NOP: {
-                    ticks--;
                     break;
                 }
                 case INS_RTI: {
@@ -1635,6 +1590,21 @@ struct CPU {
         word addr = fetch(ticks, bus); // Low byte
         addr |= ((word)fetch(ticks, bus)) << 8; // High byte
         return addr;
+    }
+
+    // NMOS 6502 quirk: JMP ($xxFF) reads high byte from $xx00, not $(xx+1)00.
+    word ReadWordWithPageWrapBug(u32 & ticks, word pointer, Bus & bus) {
+        byte low = ReadByte(ticks, pointer, bus);
+        word high_addr = (pointer & 0xFF00) | ((pointer + 1) & 0x00FF);
+        byte high = ReadByte(ticks, high_addr, bus);
+        return low | ((word)high << 8);
+    }
+
+    void branch_relative(u32 & ticks, Bus & bus, bool should_branch) {
+        signed char offset = static_cast<signed char>(fetch(ticks, bus));
+        if (should_branch) {
+            PC = static_cast<word>(PC + offset);
+        }
     }
 
     // ($nn, X)
