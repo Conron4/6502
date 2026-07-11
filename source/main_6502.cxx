@@ -355,8 +355,24 @@ struct CPU {
         // CMP Y Register
         INS_CPY_IMM  = 0xC0,
         INS_CPY_ZP   = 0xC4,
-        INS_CPY_ABS  = 0xCC;
-
+        INS_CPY_ABS  = 0xCC,
+        // INC / DEC
+        // Increment
+        INS_INC_ZP   = 0xE6,
+        INS_INC_ZPX  = 0xF6,
+        INS_INC_ABS  = 0xEE,
+        INS_INC_ABX  = 0xFE,
+        // Increment X/Y
+        INS_INX      = 0xE8,
+        INS_INY      = 0xC8,
+        // Decrement
+        INS_DEC_ZP   = 0xC6,
+        INS_DEC_ZPX  = 0xD6,
+        INS_DEC_ABS  = 0xCE,
+        INS_DEC_ABX  = 0xDE,
+        // Decrement X/Y
+        INS_DEX      = 0xCA,
+        INS_DEY      = 0x88;
     
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
@@ -1096,6 +1112,94 @@ struct CPU {
                     byte result = Y - opr;
                     C = (Y >= opr) ? 1 : 0;
                     LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_INC_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    byte inc_tmp = ReadByte(ticks, zero_page_addr, bus);
+                    inc_tmp = inc_tmp++;
+                    LDSetStatusFlags(inc_tmp);
+                    WriteByte(ticks, zero_page_addr,inc_tmp,bus);
+                    break;
+                }
+                case INS_INC_ZPX: {
+                    byte zero_page_addr = fetch(ticks, bus);
+                    zero_page_addr = zero_page_addr + X;
+                    byte inc_tmp = ReadByte(ticks, zero_page_addr, bus);
+                    inc_tmp = inc_tmp++;
+                    LDSetStatusFlags(inc_tmp);
+                    WriteByte(ticks, zero_page_addr, inc_tmp, bus);
+                    break;
+                }
+                case INS_INC_ABS: {
+                    word addr = wordfetch(ticks, bus);
+                    byte inc_tmp = ReadByte(ticks, addr, bus);
+                    inc_tmp = inc_tmp++;
+                    LDSetStatusFlags(inc_tmp);
+                    WriteByte(ticks, addr, inc_tmp, bus);
+                    break;
+                }
+                case INS_INC_ABX: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + X;
+                    byte inc_tmp = ReadByte(ticks,addr,bus);
+                    inc_tmp = inc_tmp++;
+                    LDSetStatusFlags(inc_tmp);
+                    WriteByte(ticks, addr, inc_tmp, bus);
+                    break;
+                }
+                case INS_INX: {
+                    X = X++;
+                    LDSetStatusFlags(X);
+                    break;
+                }
+                case INS_INY: {
+                    Y = Y++;
+                    LDSetStatusFlags(Y);
+                    break;
+                }
+                case INS_DEC_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    byte dec_tmp = ReadByte(ticks, zero_page_addr, bus);
+                    dec_tmp = dec_tmp--;
+                    LDSetStatusFlags(dec_tmp);
+                    WriteByte(ticks, zero_page_addr,dec_tmp,bus);
+                    break;
+                }
+                case INS_DEC_ZPX: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    zero_page_addr = zero_page_addr + X;
+                    byte dec_tmp = ReadByte(ticks, zero_page_addr, bus);
+                    dec_tmp = dec_tmp--;
+                    LDSetStatusFlags(dec_tmp);
+                    WriteByte(ticks, zero_page_addr,dec_tmp,bus);
+                    break;
+                }
+                case INS_DEC_ABS: {
+                    word addr = wordfetch(ticks, bus);
+                    byte dec_tmp = ReadByte(ticks, addr, bus);
+                    dec_tmp = dec_tmp--;
+                    LDSetStatusFlags(dec_tmp);
+                    WriteByte(ticks, addr, dec_tmp, bus);
+                    break;
+                }
+                case INS_DEC_ABX: {
+                    word addr = wordfetch(ticks, bus);
+                    addr = addr + X;
+                    byte dec_tmp = ReadByte(ticks, addr, bus);
+                    dec_tmp = dec_tmp--;
+                    LDSetStatusFlags(dec_tmp);
+                    WriteByte(ticks, addr, dec_tmp, bus);
+                    break;
+                }
+                case INS_DEX: {
+                    X = X--;
+                    LDSetStatusFlags(X);
+                    break;
+                }
+                case INS_DEY: {
+                    Y = Y--;
+                    LDSetStatusFlags(Y);
                     break;
                 }
                 case INS_JMP_ABS: {
