@@ -404,7 +404,28 @@ struct CPU {
         // Jump to subroutine
         INS_JSR_ABS = 0x20,
         // Return from subroutine
-        INS_RTS_IMP = 0x60;
+        INS_RTS_IMP = 0x60,
+        //Branches
+        INS_BCC     = 0x90,
+        INS_BCS     = 0xB0,
+        INS_BEQ     = 0xF0,
+        INS_BMI     = 0x30,
+        INS_BNE     = 0xD0,
+        INS_BPL     = 0x10,
+        INS_BVC     = 0x50,
+        INS_BVS     = 0x70,
+        // Status flag changes
+        INS_CLC     = 0x18,
+        INS_CLD     = 0xD8,
+        INS_CLI     = 0x58,
+        INS_CLV     = 0xB8,
+        INS_SEC     = 0x38,
+        INS_SED     = 0xF8,
+        INS_SEI     = 0x78,
+        // System Functions
+        INS_BRK     = 0x00,
+        INS_NOP     = 0xEA,
+        INS_RTI     = 0x40;
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
         PC = bus.read(0xFFFC) | ((word)bus.read(0xFFFD) << 8); // Reads cleanly out of translated ROM!
@@ -1468,6 +1489,132 @@ struct CPU {
                     
                     word return_addr = return_addr_low | (return_addr_high << 8);
                     PC = return_addr + 1;
+                    break;
+                }
+                case INS_BCC: {
+                    if (C != 1) {
+                        PC = wordfetch(ticks,bus);
+                    }
+                    break;
+                }
+                case INS_BCS: {
+                    if (C != 0) {
+                        PC = wordfetch(ticks,bus);
+                    }
+                    break;
+                }
+                case INS_BEQ: {
+                    if (Z != 0) {
+                        PC = wordfetch(ticks,bus);
+                    }
+                    break;
+                }
+                case INS_BMI: {
+                    if (N != 0) {
+                        PC = wordfetch(ticks,bus);
+                    }
+                    break;
+                }
+                case INS_BNE: {
+                    if (Z != 1) {
+                        PC = wordfetch(ticks,bus);
+                    }
+                    break;
+                }
+                case INS_BPL: {
+                    if (N != 1) {
+                        PC = wordfetch(ticks,bus);
+                    }
+                    break;
+                }
+                case INS_BVC: {
+                    if (V != 1) {
+                        PC = wordfetch(ticks,bus);
+                    }
+                    break;
+                }
+                case INS_BVS: {
+                    if (V != 0) {
+                        PC = wordfetch(ticks,bus);
+                    }
+                    break;
+                }
+                case INS_CLC: {
+                    C = 0;
+                    break;
+                }
+                case INS_CLD: {
+                    D = 0;
+                    break;
+                }
+                case INS_CLI: {
+                    I = 0;
+                    break;
+                }
+                case INS_CLV: {
+                    V = 0;
+                    break;
+                }
+                case INS_SEC: {
+                    C = 1;
+                    break;
+                }
+                case INS_SED: {
+                    D = 1;
+                    break;
+                }
+                case INS_SEI: {
+                    I = 1;
+                    break;
+                }
+                case INS_BRK: {
+                    PC++;
+                    
+                    WriteByte(ticks, (PC >> 8) & 0xFF, 0x0100 + SP, bus);
+                    SP--;
+
+                    
+                    WriteByte(ticks, PC & 0xFF, 0x0100 + SP, bus);
+                    SP--;
+                    
+                    byte stack_P = processorstatus() | 0x10 | 0x20; 
+                    WriteByte(ticks, stack_P, 0x0100 + SP, bus);
+                    SP--;
+                    I = 1;
+                    byte target_low = ReadByte(ticks, 0xFFFE, bus);
+                    byte target_high = ReadByte(ticks, 0xFFFF, bus);
+    
+                    PC = target_low | ((word)target_high << 8);
+                    break;
+                }
+                case INS_NOP: {
+                    ticks--;
+                    break;
+                }
+                case INS_RTI: {
+                    //Step up to the Status Register slot and pull it
+                    SP++;
+                    byte pulled_P = ReadByte(ticks, 0x0100 + SP, bus);
+    
+                    // Unpack the pulled byte directly back into individual CPU flags.
+                    C = (pulled_P >> 0) & 1;
+                    Z = (pulled_P >> 1) & 1;
+                    I = (pulled_P >> 2) & 1;
+                    D = (pulled_P >> 3) & 1;
+                    V = (pulled_P >> 6) & 1;
+                    N = (pulled_P >> 7) & 1;
+
+                    // Pull low PC
+                    SP++;
+                    word pc_low = ReadByte(ticks, 0x0100 + SP, bus);
+
+                    // Pull high PC
+                    SP++;
+                    word pc_high = ReadByte(ticks, 0x0100 + SP, bus);
+
+                    // Combine them into PC
+                    PC = pc_low | (pc_high << 8);
+
                     break;
                 }
                 default:
