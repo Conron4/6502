@@ -372,8 +372,32 @@ struct CPU {
         INS_DEC_ABX  = 0xDE,
         // Decrement X/Y
         INS_DEX      = 0xCA,
-        INS_DEY      = 0x88;
-    
+        INS_DEY      = 0x88,
+        // Shifts
+        // Arithmetic Shift Left
+        INS_ASL_ACC  = 0x0A,
+        INS_ASL_ZP   = 0x06,
+        INS_ASL_ZPX  = 0x16,
+        INS_ASL_ABS  = 0x0E,
+        INS_ASL_ABX  = 0x1E,
+        // Logical Shift Right
+        INS_LSR_ACC  = 0x4A,
+        INS_LSR_ZP   = 0x46,
+        INS_LSR_ZPX  = 0x56,
+        INS_LSR_ABS  = 0x4E,
+        INS_LSR_ABX  = 0x5E,
+        // Rotate Left
+        INS_ROL_ACC  = 0x2A,
+        INS_ROL_ZP   = 0x26,
+        INS_ROL_ZPX  = 0x36,
+        INS_ROL_ABS  = 0x2E,
+        INS_ROL_ABX  = 0x3E,
+        // Rotate Right
+        INS_ROR_ACC  = 0x6A,
+        INS_ROR_ZP   = 0x66,
+        INS_ROR_ZPX  = 0x76,
+        INS_ROR_ABS  = 0x6E,
+        INS_ROR_ABX  = 0x7E;
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
         PC = bus.read(0xFFFC) | ((word)bus.read(0xFFFD) << 8); // Reads cleanly out of translated ROM!
@@ -1200,6 +1224,202 @@ struct CPU {
                 case INS_DEY: {
                     Y = Y--;
                     LDSetStatusFlags(Y);
+                    break;
+                }
+                case INS_ASL_ACC: {
+                    C = (A >> 7) & 1;
+                    A = A << 1;
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_ASL_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    byte tmp = ReadByte(ticks,zero_page_addr,bus);
+                    C = (tmp >> 7) & 1;
+                    tmp = tmp << 1;
+                    WriteByte(ticks,zero_page_addr,tmp,bus);
+                    LDSetStatusFlags(tmp);    
+                    break;
+                }
+                case INS_ASL_ZPX: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    zero_page_addr = zero_page_addr + X;
+                    byte tmp = ReadByte(ticks,zero_page_addr,bus);
+                    C = (tmp >> 7) & 1;
+                    tmp = tmp << 1;
+                    WriteByte(ticks,zero_page_addr,tmp,bus);
+                    LDSetStatusFlags(tmp);    
+                    break;
+                }
+                case INS_ASL_ABS: {
+                    word addr = wordfetch(ticks, bus);
+                    byte tmp = ReadByte(ticks,addr,bus);
+                    C = (tmp >> 7) & 1;
+                    tmp = tmp << 1;
+                    WriteByte(ticks,addr,tmp,bus);
+                    LDSetStatusFlags(tmp);
+                    break;
+                }
+                case INS_ASL_ABX: {
+                    word addr = wordfetch(ticks, bus);
+                    addr = addr + X;
+                    byte tmp = ReadByte(ticks,addr,bus);
+                    C = (tmp >> 7) & 1;
+                    tmp = tmp << 1;
+                    WriteByte(ticks,addr,tmp,bus);
+                    LDSetStatusFlags(tmp);
+                    break;
+                }
+                case INS_LSR_ACC: {
+                    C = A & 1;
+                    A = A >> 1;
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_LSR_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    byte tmp = ReadByte(ticks,zero_page_addr,bus);
+                    C = tmp & 1;
+                    tmp = tmp >> 1;
+                    WriteByte(ticks,zero_page_addr,tmp,bus);
+                    LDSetStatusFlags(tmp);    
+                    break;
+                }
+                case INS_LSR_ZPX: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    zero_page_addr = zero_page_addr + X;
+                    byte tmp = ReadByte(ticks,zero_page_addr,bus);
+                    C = tmp & 1;
+                    tmp = tmp >> 1;
+                    WriteByte(ticks,zero_page_addr,tmp,bus);
+                    LDSetStatusFlags(tmp);    
+                    break;
+                }
+                case INS_LSR_ABS: {
+                    word addr = wordfetch(ticks, bus);
+                    byte tmp = ReadByte(ticks,addr,bus);
+                    C = tmp & 1;
+                    tmp = tmp >> 1;
+                    WriteByte(ticks,addr,tmp,bus);
+                    LDSetStatusFlags(tmp);
+                    break;
+                }
+                case INS_LSR_ABX: {
+                    word addr = wordfetch(ticks, bus);
+                    addr = addr + X;
+                    byte tmp = ReadByte(ticks,addr,bus);
+                    C = tmp & 1;
+                    tmp = tmp >> 1;
+                    WriteByte(ticks,addr,tmp,bus);
+                    LDSetStatusFlags(tmp);
+                    break;
+                }
+                case INS_ROL_ACC: {
+                    byte tmpC = (A >> 7) & 1;
+                    A = A << 1;
+                    A |= C;
+                    C = tmpC;
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_ROL_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    byte tmp = ReadByte(ticks,zero_page_addr,bus);
+                    byte tmpC = (tmp >> 7) & 1;
+                    tmp = tmp << 1;
+                    tmp |= C;
+                    C = tmpC;
+                    WriteByte(ticks, tmp, zero_page_addr, bus);
+                    LDSetStatusFlags(tmp);
+                    break;
+                }
+                case INS_ROL_ZPX: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    zero_page_addr = zero_page_addr + X;
+                    byte tmp = ReadByte(ticks,zero_page_addr,bus);
+                    byte tmpC = (tmp >> 7) & 1;
+                    tmp = tmp << 1;
+                    tmp |= C;
+                    C = tmpC;
+                    WriteByte(ticks, tmp, zero_page_addr, bus);
+                    LDSetStatusFlags(tmp);
+                    break;
+                }
+                case INS_ROL_ABS: {
+                    byte addr = wordfetch(ticks,bus);
+                    byte tmp = ReadByte(ticks,addr,bus);
+                    byte tmpC = (tmp >> 7) & 1;
+                    tmp = tmp << 1;
+                    tmp |= C;
+                    C = tmpC;
+                    WriteByte(ticks, tmp, addr, bus);
+                    LDSetStatusFlags(tmp);
+                    break;
+                }
+                case INS_ROL_ABX: {
+                    byte addr = wordfetch(ticks,bus);
+                    addr = addr + X;
+                    byte tmp = ReadByte(ticks,addr,bus);
+                    byte tmpC = (tmp >> 7) & 1;
+                    tmp = tmp << 1;
+                    tmp |= C;
+                    C = tmpC;
+                    WriteByte(ticks, tmp, addr, bus);
+                    LDSetStatusFlags(tmp);
+                    break;
+                }
+                case INS_ROR_ACC: {
+                    byte tmpC = A  & 1;
+                    A = A >> 1;
+                    A |= (C << 7);
+                    C = tmpC;
+                    LDSetStatusFlags(A);
+                    break;
+                }
+                case INS_ROR_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    byte tmp = ReadByte(ticks, zero_page_addr, bus);
+                    byte tmpC = tmp  & 1;
+                    tmp = tmp >> 1;
+                    tmp |= (C << 7);
+                    C = tmpC;
+                    WriteByte(ticks, tmp, zero_page_addr, bus);
+                    LDSetStatusFlags(tmp);
+                    break;
+                }
+                case INS_ROR_ZPX: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    zero_page_addr = zero_page_addr + X;
+                    byte tmp = ReadByte(ticks, zero_page_addr, bus);
+                    byte tmpC = tmp  & 1;
+                    tmp = tmp >> 1;
+                    tmp |= (C << 7);
+                    C = tmpC;
+                    WriteByte(ticks, tmp, zero_page_addr, bus);
+                    LDSetStatusFlags(tmp);
+                    break;
+                }
+                case INS_ROR_ABS: {
+                    word addr = wordfetch(ticks,bus);
+                    byte tmp = ReadByte(ticks, addr, bus);
+                    byte tmpC = tmp  & 1;
+                    tmp = tmp >> 1;
+                    tmp |= (C << 7);
+                    C = tmpC;
+                    WriteByte(ticks, tmp, addr, bus);
+                    LDSetStatusFlags(tmp);
+                    break;
+                }
+                case INS_ROR_ABX: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + X;
+                    byte tmp = ReadByte(ticks, addr, bus);
+                    byte tmpC = tmp  & 1;
+                    tmp = tmp >> 1;
+                    tmp |= (C << 7);
+                    C = tmpC;
+                    WriteByte(ticks, tmp, addr, bus);
+                    LDSetStatusFlags(tmp);
                     break;
                 }
                 case INS_JMP_ABS: {
