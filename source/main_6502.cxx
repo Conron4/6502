@@ -289,6 +289,7 @@ struct CPU {
         INS_PHP      = 0x08,
         INS_PLA      = 0x68,
         INS_PLP      = 0x28,
+        // LOGICAL
         // Logical AND
         INS_AND_IMM  = 0x29,
         INS_AND_ZP   = 0x25,
@@ -318,7 +319,44 @@ struct CPU {
         INS_ORA_INY  = 0x11,
         // Bit Test
         INS_BIT_ZP   = 0x24,
-        INS_BIT_ABS  = 0x2C;
+        INS_BIT_ABS  = 0x2C,
+        // Arthmetic
+        // ADD with Carry
+        INS_ADC_IMM  = 0x69,
+        INS_ADC_ZP   = 0x65,
+        INS_ADC_ZPX  = 0x75,
+        INS_ADC_ABS  = 0x6D,
+        INS_ADC_ABX  = 0x7D,
+        INS_ADC_ABY  = 0x79,
+        INS_ADC_INX  = 0x61,
+        INS_ADC_INY  = 0x71,
+        // SUB with Carry
+        INS_SBC_IMM  = 0xE9,
+        INS_SBC_ZP   = 0xE5,
+        INS_SBC_ZPX  = 0xF5,
+        INS_SBC_ABS  = 0xED,
+        INS_SBC_ABX  = 0xFD,
+        INS_SBC_ABY  = 0xF9,
+        INS_SBC_INX  = 0xE1,
+        INS_SBC_INY  = 0xF1,
+        // CMP Accumulator
+        INS_CMP_IMM  = 0xC9,
+        INS_CMP_ZP   = 0xC5,
+        INS_CMP_ZPX  = 0xD5,
+        INS_CMP_ABS  = 0xCD,
+        INS_CMP_ABX  = 0xDD,
+        INS_CMP_ABY  = 0xD9,
+        INS_CMP_INX  = 0xC1,
+        INS_CMP_INY  = 0xD1,
+        // CMP X Register
+        INS_CPX_IMM  = 0xE0,
+        INS_CPX_ZP   = 0xE4,
+        INS_CPX_ABS  = 0xEC,
+        // CMP Y Register
+        INS_CPY_IMM  = 0xC0,
+        INS_CPY_ZP   = 0xC4,
+        INS_CPY_ABS  = 0xCC;
+
     
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
@@ -764,6 +802,302 @@ struct CPU {
                     break;
 
                 }
+                case INS_ADC_IMM: {
+                    byte opr = fetch(ticks,bus);
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, opr, false,bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, opr, false, bus);
+                    }
+                    break;
+                }
+                case INS_ADC_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,zero_page_addr,bus), false, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,zero_page_addr,bus), false, bus);
+                    }
+                    break;
+                }
+                case INS_ADC_ZPX: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    zero_page_addr = zero_page_addr + X;
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,zero_page_addr,bus), false, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,zero_page_addr,bus), false, bus);
+                    }
+                    break;
+                }
+                case INS_ADC_ABS: {
+                    word addr = wordfetch(ticks,bus);
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,addr,bus), false, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,addr,bus), false, bus);
+                    }
+                    break;
+
+                }
+                case INS_ADC_ABX: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + X;
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,addr,bus), false, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,addr,bus), false, bus);
+                    }
+                    break;
+                }
+                case INS_ADC_ABY: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + Y;
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,addr,bus), false, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,addr,bus), false, bus);
+                    }
+                    break;
+                }
+                case INS_ADC_INX: {
+                    word effective_addr = indexed_indirect(ticks, fetch(ticks, bus), bus);
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,effective_addr,bus), false, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,effective_addr,bus), false, bus);
+                    }
+                    break;
+                }
+                case INS_ADC_INY: {
+                    word effective_addr = indirect_indexed(ticks, fetch(ticks, bus), bus);
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,effective_addr,bus), false, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,effective_addr,bus), false, bus);
+                    }
+                    break;
+                }
+                case INS_SBC_IMM: {
+                    byte opr = fetch(ticks,bus);
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, opr, true,bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, opr, true, bus);
+                    }
+                    break;
+                }
+                case INS_SBC_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,zero_page_addr,bus), true, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,zero_page_addr,bus), true, bus);
+                    }
+                    break;
+                }
+                case INS_SBC_ZPX: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    zero_page_addr = zero_page_addr + X;
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,zero_page_addr,bus), true, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,zero_page_addr,bus), true, bus);
+                    }
+                    break;
+                }
+                case INS_SBC_ABS: {
+                    word addr = wordfetch(ticks,bus);
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,addr,bus), true, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,addr,bus), true, bus);
+                    }
+                    break;
+
+                }
+                case INS_SBC_ABX: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + X;
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,addr,bus), true, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,addr,bus), true, bus);
+                    }
+                    break;
+                }
+                case INS_SBC_ABY: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + Y;
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,addr,bus), true, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,addr,bus), true, bus);
+                    }
+                    break;
+                }
+                case INS_SBC_INX: {
+                    word effective_addr = indexed_indirect(ticks, fetch(ticks, bus), bus);
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,effective_addr,bus), true, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,effective_addr,bus), true, bus);
+                    }
+                    break;
+                }
+                case INS_SBC_INY: {
+                    word effective_addr = indirect_indexed(ticks, fetch(ticks, bus), bus);
+                    if (D != 1) {
+                        A = ADC_SBC_HEX(ticks, ReadByte(ticks,effective_addr,bus), true, bus);
+                        LDSetStatusFlags(A);
+                    }
+                    else {
+                        A = ADC_SBC_BCD(ticks, ReadByte(ticks,effective_addr,bus), true, bus);
+                    }
+                    break;
+                }
+                case INS_CMP_IMM: {
+                    byte opr = fetch(ticks, bus);
+                    byte result = A - opr;
+                    C = (A >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CMP_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    byte opr = ReadByte(ticks,zero_page_addr,bus);
+                    byte result = A - opr;
+                    C = (A >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CMP_ZPX: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    zero_page_addr = zero_page_addr + X;
+                    byte opr = ReadByte(ticks,zero_page_addr,bus);
+                    byte result = A - opr;
+                    C = (A >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CMP_ABS: {
+                    word addr = wordfetch(ticks,bus);
+                    byte opr = ReadByte(ticks,addr,bus);
+                    byte result = A - opr;
+                    C = (A >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CMP_ABX: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + X;
+                    byte opr = ReadByte(ticks,addr,bus);
+                    byte result = A - opr;
+                    C = (A >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CMP_ABY: {
+                    word addr = wordfetch(ticks,bus);
+                    addr = addr + Y;
+                    byte opr = ReadByte(ticks,addr,bus);
+                    byte result = A - opr;
+                    C = (A >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CMP_INX: {
+                    word addr = indexed_indirect(ticks, fetch(ticks, bus), bus);
+                    byte opr = ReadByte(ticks,addr,bus);
+                    byte result = A - opr;
+                    C = (A >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CMP_INY: {
+                    word addr = indirect_indexed(ticks, fetch(ticks, bus), bus);
+                    byte opr = ReadByte(ticks,addr,bus);
+                    byte result = A - opr;
+                    C = (A >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CPX_IMM: {
+                    byte opr = fetch(ticks, bus);
+                    byte result = X - opr;
+                    C = (X >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CPX_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    byte opr = ReadByte(ticks,zero_page_addr,bus);
+                    byte result = X - opr;
+                    C = (X >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CPX_ABS: {
+                    word addr = wordfetch(ticks,bus);
+                    byte opr = ReadByte(ticks,addr,bus);
+                    byte result = X - opr;
+                    C = (X >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CPY_IMM: {
+                    byte opr = fetch(ticks, bus);
+                    byte result = Y - opr;
+                    C = (Y >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CPY_ZP: {
+                    byte zero_page_addr = fetch(ticks,bus);
+                    byte opr = ReadByte(ticks,zero_page_addr,bus);
+                    byte result = Y - opr;
+                    C = (Y >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
+                case INS_CPY_ABS: {
+                    word addr = wordfetch(ticks,bus);
+                    byte opr = ReadByte(ticks,addr,bus);
+                    byte result = Y - opr;
+                    C = (Y >= opr) ? 1 : 0;
+                    LDSetStatusFlags(result);
+                    break;
+                }
                 case INS_JMP_ABS: {
                     word addr = wordfetch(ticks, bus);
                     PC = addr;
@@ -814,6 +1148,53 @@ struct CPU {
     
         // Add Y to the 16-bit base address here!
         return base_address + Y; 
+    }
+    byte ADC_SBC_HEX(u32 & ticks, byte opr, bool is_subtraction, Bus & bus) {
+        if (is_subtraction) {
+            opr = ~opr;
+        }
+        word result = A + opr + C;
+        // If result > 0xFF set to 1 else set to 0
+        C = (result > 0xFF) ? 1 : 0;
+        // Check if A & opr have same sign bit and A & result have diffrent sign bits(7) 
+        // Set V to 1 else set to 0
+        V = (~(A ^ opr) & (A ^ result) & 0x80) ? 1 : 0;
+        return (byte)result;
+    }
+    byte ADC_SBC_BCD(u32 & ticks, byte opr, bool is_subtraction, Bus & bus) {
+        if (is_subtraction) {
+            opr = ~opr;
+        }
+        // 1. Calculate the lower nibble (ones place)
+        word low_nibble = (A & 0x0F) + (opr & 0x0F) + C;
+        if (low_nibble > 9) {
+            low_nibble += 6; // BCD Correction for low nibble
+        }
+
+        // 2. Calculate the upper nibble (tens place) using the low nibble's carry status
+        // If low_nibble > 15, it naturally carried into bit 4. 
+        word high_nibble = (A & 0xF0) + (opr & 0xF0) + (low_nibble & 0xF0);
+
+        // 3. The Overflow flag (V) on the NMOS 6502 is calculated based on the 
+        // SIGN of the inputs before BCD correction takes place.
+        word binary_result = A + opr + C;
+        V = (~(A ^ opr) & (A ^ binary_result) & 0x80) ? 1 : 0;
+
+        // 4. Update the Zero (Z) and Negative (N) flags based on the standard binary result
+        LDSetStatusFlags((byte)(binary_result & 0xFF));
+
+        // 5. Check for high nibble decimal overflow
+        if (high_nibble > 0x90) {
+            high_nibble += 0x60; // BCD Correction for high nibble
+            C = 1;               // Set carry out
+        } else {
+            C = 0;               // Clear carry out
+        }
+
+        // 6. Combine the corrected low and high nibbles
+        byte result = (high_nibble & 0xF0) | (low_nibble & 0x0F);
+    
+        return result;
     }
 
     byte ReadByte(u32& ticks, word address, Bus & bus) {
