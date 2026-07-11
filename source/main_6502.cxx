@@ -240,7 +240,6 @@ struct CPU {
 
     // Opcodes
     static const byte
-        INS_JMP_ABS = 0x4C,
         // Load and Store Instructions
         // Load A
         INS_LDA_IMM = 0xA9,
@@ -397,7 +396,15 @@ struct CPU {
         INS_ROR_ZP   = 0x66,
         INS_ROR_ZPX  = 0x76,
         INS_ROR_ABS  = 0x6E,
-        INS_ROR_ABX  = 0x7E;
+        INS_ROR_ABX  = 0x7E,
+        // Jumps & Calls
+        // Jump to location
+        INS_JMP_ABS = 0x4C,
+        INS_JMP_IND = 0x6C,
+        // Jump to subroutine
+        INS_JSR_ABS = 0x20,
+        // Return from subroutine
+        INS_RTS_IMP = 0x60;
     // CPU now references the Bus instead of raw Mem
     void reset(Bus & bus) {
         PC = bus.read(0xFFFC) | ((word)bus.read(0xFFFD) << 8); // Reads cleanly out of translated ROM!
@@ -1425,6 +1432,42 @@ struct CPU {
                 case INS_JMP_ABS: {
                     word addr = wordfetch(ticks, bus);
                     PC = addr;
+                    break;
+                }
+                case INS_JMP_IND: {
+                    word addr = wordfetch(ticks, bus);
+                    PC = ReadByte(ticks, addr, bus);
+                    break;
+                }
+                case INS_JSR_ABS: {
+                    word vector_addr = wordfetch(ticks, bus);
+    
+                    byte low = ReadByte(ticks, vector_addr, bus);
+                    word high_addr;
+
+                    // Check if the vector address ends in 0xFF (Page Boundary Bug)
+                    if ((vector_addr & 0x00FF) == 0x00FF) {
+                    // Wrap around to the beginning of the SAME page instead of crossing pages
+                        high_addr = vector_addr & 0xFF00; 
+                    } else {
+                    // Normal behavior: Read from the very next byte in memory
+                        high_addr = vector_addr + 1;
+                    }
+
+                    byte high = ReadByte(ticks, high_addr, bus);
+    
+                    // Combine them to form the final target Program Counter
+                    PC = low | ((word)high << 8);
+                    break;
+                }
+                case INS_RTS_IMP: {
+                    SP++;
+                    word return_addr_low = ReadByte(ticks, 0x0100 + SP, bus);
+                    SP++;
+                    word return_addr_high = ReadByte(ticks, 0x0100 + SP, bus);
+                    
+                    word return_addr = return_addr_low | (return_addr_high << 8);
+                    PC = return_addr + 1;
                     break;
                 }
                 default:
