@@ -1,5 +1,5 @@
 // 6502 Emulator
-// Licensed under the GPL V3 License.
+// Licensed under the GPL V2 License.
 // Copyright (C) 2026 Connor Hopley
 #include <stdio.h>
 #include <stdlib.h>
