@@ -1,1 +1,2 @@
-bin/*
+bin/main_6502
+bin/opcode_tests
