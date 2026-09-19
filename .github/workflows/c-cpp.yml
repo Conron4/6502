@@ -12,6 +12,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Install and cache APT packages
+      # You may pin to the exact commit or the version.
+      # uses: gerlero/apt-install@c0fa73fe5c4a22deecf6d629565be92a15dd2026
+      uses: gerlero/apt-install@v1.3.12
+      with:
+        # APT packages to install
+        packages: libsdl2-dev
     - uses: actions/checkout@v4
     - name: autoreconf
       run: autoreconf -fi
