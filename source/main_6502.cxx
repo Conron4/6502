@@ -1695,9 +1695,11 @@ struct CPU {
 
 void setup_vram_test_pattern(Bus &bus) {
     const word vram_start = 0xB000;
-
+    for (u32 i = 0; i < 80; ++i) {
+        bus.write(vram_start + i, 0x20); // Fill the first row with spaces
+    }
     // 1. Fill the entire 4,000 byte screen with a repeating cycle of glyphs
-    for (u32 i = 0; i < 4000; ++i) {
+    for (u32 i = 80; i < 4000; ++i) {
         // This cycles character indices 0 through 63 repeatedly across the grid
         bus.write(vram_start + i, static_cast<byte>(i % 64));
     }
@@ -1737,18 +1739,13 @@ int main() {
     std::cout << "File byte at 0xFFFC (index 0x3FFC): 0x" << std::hex << (int)low_byte << std::endl;
     std::cout << "File byte at 0xFFFD (index 0x3FFD): 0x" << std::hex << (int)high_byte << std::endl;
     // Fill VRAM with test indices
-    //setup_vram_test_pattern(bus);
+    setup_vram_test_pattern(bus);
     
     // Run the tile graphics renderer
-    //std::cout << "Rendering 80x50 pixel canvas..." << std::endl;
-    //bus.render_screen();
-    // Populate RAM
-    //bus.ram[0x0024] = 0x10; 
-    //bus.ram[0x0025] = 0x80;
-    //bus.ram[0x8010] = 0x18;
-    // Fire up the emulation pipeline
+    std::cout << "Rendering 80x50 pixel canvas..." << std::endl;
+    bus.render_screen();
+    
     cpu.reset(bus);
-    //cpu.X = 0x04; // Set X register to 5 for the LDA ZPX test
     cpu.execute(4, bus); // Executes the LDA operation
     
     return 0;
