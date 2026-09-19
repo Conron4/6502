@@ -1,1 +1,1 @@
-6502 Emulator written in c++
+6502 Emulator written in C++

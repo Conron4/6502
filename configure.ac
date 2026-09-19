@@ -1,5 +1,5 @@
 AC_INIT([6502], [0.2], [https://github.com/Conron4/6502])
-AC_CONFIG_SRCDIR([source/main_6502.cxx])
+AC_CONFIG_SRCDIR([src/main_6502.cxx])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 
