@@ -83,8 +83,10 @@ void setup_cpu_bus(CPU& cpu, Bus& bus) {
     cpu.C = cpu.Z = cpu.I = cpu.D = cpu.B = cpu.V = cpu.N = 0;
 }
 
-void run_ticks(CPU& cpu, Bus& bus, u32 ticks = 40) {
-    cpu.execute(ticks, bus);
+void run_steps(CPU& cpu, Bus& bus, u32 steps = 40) {
+    for (u32 i = 0; i < steps; ++i) {
+        cpu.step(bus);
+    }
 }
 
 word place_abs_operand(Bus& bus, word pc, word address) {
@@ -109,7 +111,7 @@ void test_load_store(TestContext& t) {
         cpu.A = 0;
         bus.write(TEST_PC, CPU::INS_LDA_IMM);
         bus.write(TEST_PC + 1, 0x42);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x42), "LDA_IMM");
     }
     {
@@ -119,7 +121,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x0044, 0x43);
         bus.write(TEST_PC, CPU::INS_LDA_ZP);
         bus.write(TEST_PC + 1, 0x44);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x43), "LDA_ZP");
     }
     {
@@ -130,7 +132,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x0047, 0x44);
         bus.write(TEST_PC, CPU::INS_LDA_ZPX);
         bus.write(TEST_PC + 1, 0x44);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x44), "LDA_ZPX");
     }
     {
@@ -140,7 +142,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x1234, 0x45);
         bus.write(TEST_PC, CPU::INS_LDA_ABS);
         place_abs_operand(bus, TEST_PC, 0x1234);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x45), "LDA_ABS");
     }
     {
@@ -151,7 +153,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x1239, 0x46);
         bus.write(TEST_PC, CPU::INS_LDA_ABX);
         place_abs_operand(bus, TEST_PC, 0x1234);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x46), "LDA_ABX");
     }
     {
@@ -162,7 +164,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x123A, 0x47);
         bus.write(TEST_PC, CPU::INS_LDA_ABY);
         place_abs_operand(bus, TEST_PC, 0x1234);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x47), "LDA_ABY");
     }
     {
@@ -175,7 +177,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x5678, 0x48);
         bus.write(TEST_PC, CPU::INS_LDA_INX);
         bus.write(TEST_PC + 1, 0x20);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x48), "LDA_INX");
     }
     {
@@ -188,7 +190,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x4005, 0x49);
         bus.write(TEST_PC, CPU::INS_LDA_INY);
         bus.write(TEST_PC + 1, 0x30);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x49), "LDA_INY");
     }
 
@@ -198,7 +200,7 @@ void test_load_store(TestContext& t) {
         setup_cpu_bus(cpu, bus);
         bus.write(TEST_PC, CPU::INS_LDX_IMM);
         bus.write(TEST_PC + 1, 0x51);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.X, static_cast<byte>(0x51), "LDX_IMM");
     }
     {
@@ -207,7 +209,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x0042, 0x52);
         bus.write(TEST_PC, CPU::INS_LDX_ZP);
         bus.write(TEST_PC + 1, 0x42);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.X, static_cast<byte>(0x52), "LDX_ZP");
     }
     {
@@ -217,7 +219,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x0044, 0x53);
         bus.write(TEST_PC, CPU::INS_LDX_ZPY);
         bus.write(TEST_PC + 1, 0x42);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.X, static_cast<byte>(0x53), "LDX_ZPY");
     }
     {
@@ -226,7 +228,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x2233, 0x54);
         bus.write(TEST_PC, CPU::INS_LDX_ABS);
         place_abs_operand(bus, TEST_PC, 0x2233);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.X, static_cast<byte>(0x54), "LDX_ABS");
     }
     {
@@ -236,7 +238,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x2235, 0x55);
         bus.write(TEST_PC, CPU::INS_LDX_ABY);
         place_abs_operand(bus, TEST_PC, 0x2233);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.X, static_cast<byte>(0x55), "LDX_ABY");
     }
 
@@ -246,7 +248,7 @@ void test_load_store(TestContext& t) {
         setup_cpu_bus(cpu, bus);
         bus.write(TEST_PC, CPU::INS_LDY_IMM);
         bus.write(TEST_PC + 1, 0x61);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.Y, static_cast<byte>(0x61), "LDY_IMM");
     }
     {
@@ -255,7 +257,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x0031, 0x62);
         bus.write(TEST_PC, CPU::INS_LDY_ZP);
         bus.write(TEST_PC + 1, 0x31);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.Y, static_cast<byte>(0x62), "LDY_ZP");
     }
     {
@@ -265,7 +267,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x0034, 0x63);
         bus.write(TEST_PC, CPU::INS_LDY_ZPX);
         bus.write(TEST_PC + 1, 0x31);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.Y, static_cast<byte>(0x63), "LDY_ZPX");
     }
     {
@@ -274,7 +276,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x3344, 0x64);
         bus.write(TEST_PC, CPU::INS_LDY_ABS);
         place_abs_operand(bus, TEST_PC, 0x3344);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.Y, static_cast<byte>(0x64), "LDY_ABS");
     }
     {
@@ -284,7 +286,7 @@ void test_load_store(TestContext& t) {
         bus.write(0x3346, 0x65);
         bus.write(TEST_PC, CPU::INS_LDY_ABX);
         place_abs_operand(bus, TEST_PC, 0x3344);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.Y, static_cast<byte>(0x65), "LDY_ABX");
     }
 
@@ -295,7 +297,7 @@ void test_load_store(TestContext& t) {
         cpu.A = 0x71;
         bus.write(TEST_PC, CPU::INS_STA_ZP);
         bus.write(TEST_PC + 1, 0x20);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x0020), static_cast<byte>(0x71), "STA_ZP");
     }
     {
@@ -304,7 +306,7 @@ void test_load_store(TestContext& t) {
         cpu.A = 0x72; cpu.X = 0x02;
         bus.write(TEST_PC, CPU::INS_STA_ZPX);
         bus.write(TEST_PC + 1, 0x20);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x0022), static_cast<byte>(0x72), "STA_ZPX");
     }
     {
@@ -313,7 +315,7 @@ void test_load_store(TestContext& t) {
         cpu.A = 0x73;
         bus.write(TEST_PC, CPU::INS_STA_ABS);
         place_abs_operand(bus, TEST_PC, 0x2400);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x2400), static_cast<byte>(0x73), "STA_ABS");
     }
     {
@@ -322,7 +324,7 @@ void test_load_store(TestContext& t) {
         cpu.A = 0x74; cpu.X = 0x03;
         bus.write(TEST_PC, CPU::INS_STA_ABX);
         place_abs_operand(bus, TEST_PC, 0x2400);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x2403), static_cast<byte>(0x74), "STA_ABX");
     }
     {
@@ -331,7 +333,7 @@ void test_load_store(TestContext& t) {
         cpu.A = 0x75; cpu.Y = 0x04;
         bus.write(TEST_PC, CPU::INS_STA_ABY);
         place_abs_operand(bus, TEST_PC, 0x2400);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x2404), static_cast<byte>(0x75), "STA_ABY");
     }
     {
@@ -340,7 +342,7 @@ void test_load_store(TestContext& t) {
         cpu.X = 0x76;
         bus.write(TEST_PC, CPU::INS_STX_ZP);
         bus.write(TEST_PC + 1, 0x21);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x0021), static_cast<byte>(0x76), "STX_ZP");
     }
     {
@@ -349,7 +351,7 @@ void test_load_store(TestContext& t) {
         cpu.X = 0x77; cpu.Y = 0x03;
         bus.write(TEST_PC, CPU::INS_STX_ZPY);
         bus.write(TEST_PC + 1, 0x21);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x0024), static_cast<byte>(0x77), "STX_ZPY");
     }
     {
@@ -358,7 +360,7 @@ void test_load_store(TestContext& t) {
         cpu.X = 0x78;
         bus.write(TEST_PC, CPU::INS_STX_ABS);
         place_abs_operand(bus, TEST_PC, 0x2500);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x2500), static_cast<byte>(0x78), "STX_ABS");
     }
     {
@@ -367,7 +369,7 @@ void test_load_store(TestContext& t) {
         cpu.Y = 0x79;
         bus.write(TEST_PC, CPU::INS_STY_ZP);
         bus.write(TEST_PC + 1, 0x22);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x0022), static_cast<byte>(0x79), "STY_ZP");
     }
     {
@@ -376,7 +378,7 @@ void test_load_store(TestContext& t) {
         cpu.Y = 0x7A; cpu.X = 0x02;
         bus.write(TEST_PC, CPU::INS_STY_ZPX);
         bus.write(TEST_PC + 1, 0x22);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x0024), static_cast<byte>(0x7A), "STY_ZPX");
     }
     {
@@ -385,7 +387,7 @@ void test_load_store(TestContext& t) {
         cpu.Y = 0x7B;
         bus.write(TEST_PC, CPU::INS_STY_ABS);
         place_abs_operand(bus, TEST_PC, 0x2600);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x2600), static_cast<byte>(0x7B), "STY_ABS");
     }
 }
@@ -396,7 +398,7 @@ void test_transfer_stack(TestContext& t) {
         setup_cpu_bus(cpu, bus);
         cpu.A = 0x80;
         bus.write(TEST_PC, CPU::INS_TAX);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.X, static_cast<byte>(0x80), "TAX");
     }
     {
@@ -404,7 +406,7 @@ void test_transfer_stack(TestContext& t) {
         setup_cpu_bus(cpu, bus);
         cpu.A = 0x81;
         bus.write(TEST_PC, CPU::INS_TAY);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.Y, static_cast<byte>(0x81), "TAY");
     }
     {
@@ -412,7 +414,7 @@ void test_transfer_stack(TestContext& t) {
         setup_cpu_bus(cpu, bus);
         cpu.X = 0x82;
         bus.write(TEST_PC, CPU::INS_TXA);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x82), "TXA");
     }
     {
@@ -420,7 +422,7 @@ void test_transfer_stack(TestContext& t) {
         setup_cpu_bus(cpu, bus);
         cpu.Y = 0x83;
         bus.write(TEST_PC, CPU::INS_TYA);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x83), "TYA");
     }
     {
@@ -428,7 +430,7 @@ void test_transfer_stack(TestContext& t) {
         setup_cpu_bus(cpu, bus);
         cpu.SP = 0x84;
         bus.write(TEST_PC, CPU::INS_TSX);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.X, static_cast<byte>(0x84), "TSX");
     }
     {
@@ -436,7 +438,7 @@ void test_transfer_stack(TestContext& t) {
         setup_cpu_bus(cpu, bus);
         cpu.X = 0x85;
         bus.write(TEST_PC, CPU::INS_TXS);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.SP, static_cast<byte>(0x85), "TXS");
     }
     {
@@ -444,7 +446,7 @@ void test_transfer_stack(TestContext& t) {
         setup_cpu_bus(cpu, bus);
         cpu.A = 0x86;
         bus.write(TEST_PC, CPU::INS_PHA);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(bus.read(0x01FF), static_cast<byte>(0x86), "PHA write");
         t.check_eq(cpu.SP, static_cast<byte>(0xFE), "PHA SP");
     }
@@ -453,7 +455,7 @@ void test_transfer_stack(TestContext& t) {
         setup_cpu_bus(cpu, bus);
         cpu.N = 1; cpu.V = 1; cpu.D = 1; cpu.I = 1; cpu.Z = 1; cpu.C = 1;
         bus.write(TEST_PC, CPU::INS_PHP);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check((bus.read(0x01FF) & 0x10) != 0, "PHP B flag pushed");
     }
     {
@@ -462,7 +464,7 @@ void test_transfer_stack(TestContext& t) {
         cpu.SP = 0xFE;
         bus.write(0x01FF, 0x91);
         bus.write(TEST_PC, CPU::INS_PLA);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x91), "PLA value");
         t.check_eq(cpu.SP, static_cast<byte>(0xFF), "PLA SP");
     }
@@ -472,7 +474,7 @@ void test_transfer_stack(TestContext& t) {
         cpu.SP = 0xFE;
         bus.write(0x01FF, 0b11001101);
         bus.write(TEST_PC, CPU::INS_PLP);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.N, static_cast<byte>(1), "PLP N");
         t.check_eq(cpu.V, static_cast<byte>(1), "PLP V");
         t.check_eq(cpu.D, static_cast<byte>(1), "PLP D");
@@ -488,7 +490,7 @@ void test_logical(TestContext& t) {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xF0;
         bus.write(TEST_PC, CPU::INS_AND_IMM); bus.write(TEST_PC + 1, 0x0F);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x00), "AND_IMM");
         t.check_eq(cpu.Z, static_cast<byte>(1), "AND_IMM Z");
     }
@@ -496,45 +498,45 @@ void test_logical(TestContext& t) {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xAA; bus.write(0x0010, 0x0F);
         bus.write(TEST_PC, CPU::INS_AND_ZP); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0A), "AND_ZP");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0A), "AND_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xFF; cpu.X = 0x02; bus.write(0x0012, 0xF0);
         bus.write(TEST_PC, CPU::INS_AND_ZPX); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xF0), "AND_ZPX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xF0), "AND_ZPX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x0F; bus.write(0x3000, 0xF3);
         bus.write(TEST_PC, CPU::INS_AND_ABS); place_abs_operand(bus, TEST_PC, 0x3000);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x03), "AND_ABS");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x03), "AND_ABS");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xF3; cpu.X = 1; bus.write(0x3001, 0x0F);
         bus.write(TEST_PC, CPU::INS_AND_ABX); place_abs_operand(bus, TEST_PC, 0x3000);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x03), "AND_ABX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x03), "AND_ABX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xF3; cpu.Y = 1; bus.write(0x3001, 0x03);
         bus.write(TEST_PC, CPU::INS_AND_ABY); place_abs_operand(bus, TEST_PC, 0x3000);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x03), "AND_ABY");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x03), "AND_ABY");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xFF; cpu.X = 0x04;
         bus.write(0x0024, 0x34); bus.write(0x0025, 0x12); bus.write(0x1234, 0x0C);
         bus.write(TEST_PC, CPU::INS_AND_INX); bus.write(TEST_PC + 1, 0x20);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0C), "AND_INX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0C), "AND_INX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xFF; cpu.Y = 0x03;
         bus.write(0x0030, 0x00); bus.write(0x0031, 0x20); bus.write(0x2003, 0x0D);
         bus.write(TEST_PC, CPU::INS_AND_INY); bus.write(TEST_PC + 1, 0x30);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0D), "AND_INY");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0D), "AND_INY");
     }
 
     // EOR
@@ -542,51 +544,51 @@ void test_logical(TestContext& t) {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xAA;
         bus.write(TEST_PC, CPU::INS_EOR_IMM); bus.write(TEST_PC + 1, 0xFF);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x55), "EOR_IMM");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x55), "EOR_IMM");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xAA; bus.write(0x0010, 0x0F);
         bus.write(TEST_PC, CPU::INS_EOR_ZP); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_ZP");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xAA; cpu.X = 0x01; bus.write(0x0011, 0x0F);
         bus.write(TEST_PC, CPU::INS_EOR_ZPX); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_ZPX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_ZPX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xAA; bus.write(0x3010, 0x0F);
         bus.write(TEST_PC, CPU::INS_EOR_ABS); place_abs_operand(bus, TEST_PC, 0x3010);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_ABS");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_ABS");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xAA; cpu.X = 2; bus.write(0x3012, 0x0F);
         bus.write(TEST_PC, CPU::INS_EOR_ABX); place_abs_operand(bus, TEST_PC, 0x3010);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_ABX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_ABX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xAA; cpu.Y = 2; bus.write(0x3012, 0x0F);
         bus.write(TEST_PC, CPU::INS_EOR_ABY); place_abs_operand(bus, TEST_PC, 0x3010);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_ABY");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_ABY");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xAA; cpu.X = 1;
         bus.write(0x0021, 0x10); bus.write(0x0022, 0x40); bus.write(0x4010, 0x0F);
         bus.write(TEST_PC, CPU::INS_EOR_INX); bus.write(TEST_PC + 1, 0x20);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_INX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_INX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xAA; cpu.Y = 1;
         bus.write(0x0030, 0x10); bus.write(0x0031, 0x40); bus.write(0x4011, 0x0F);
         bus.write(TEST_PC, CPU::INS_EOR_INY); bus.write(TEST_PC + 1, 0x30);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_INY");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xA5), "EOR_INY");
     }
 
     // ORA
@@ -594,51 +596,51 @@ void test_logical(TestContext& t) {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x0A;
         bus.write(TEST_PC, CPU::INS_ORA_IMM); bus.write(TEST_PC + 1, 0xF0);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_IMM");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_IMM");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x0A; bus.write(0x0010, 0xF0);
         bus.write(TEST_PC, CPU::INS_ORA_ZP); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_ZP");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x0A; cpu.X = 1; bus.write(0x0011, 0xF0);
         bus.write(TEST_PC, CPU::INS_ORA_ZPX); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_ZPX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_ZPX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x0A; bus.write(0x3020, 0xF0);
         bus.write(TEST_PC, CPU::INS_ORA_ABS); place_abs_operand(bus, TEST_PC, 0x3020);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_ABS");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_ABS");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x0A; cpu.X = 1; bus.write(0x3021, 0xF0);
         bus.write(TEST_PC, CPU::INS_ORA_ABX); place_abs_operand(bus, TEST_PC, 0x3020);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_ABX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_ABX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x0A; cpu.Y = 1; bus.write(0x3021, 0xF0);
         bus.write(TEST_PC, CPU::INS_ORA_ABY); place_abs_operand(bus, TEST_PC, 0x3020);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_ABY");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_ABY");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x0A; cpu.X = 1;
         bus.write(0x0021, 0x20); bus.write(0x0022, 0x50); bus.write(0x5020, 0xF0);
         bus.write(TEST_PC, CPU::INS_ORA_INX); bus.write(TEST_PC + 1, 0x20);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_INX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_INX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x0A; cpu.Y = 1;
         bus.write(0x0030, 0x20); bus.write(0x0031, 0x50); bus.write(0x5021, 0xF0);
         bus.write(TEST_PC, CPU::INS_ORA_INY); bus.write(TEST_PC + 1, 0x30);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_INY");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0xFA), "ORA_INY");
     }
 
     // BIT
@@ -648,7 +650,7 @@ void test_logical(TestContext& t) {
         bus.write(0x0010, 0b11000000);
         bus.write(TEST_PC, CPU::INS_BIT_ZP);
         bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.Z, static_cast<byte>(0), "BIT_ZP Z");
         t.check_eq(cpu.N, static_cast<byte>(1), "BIT_ZP N");
         t.check_eq(cpu.V, static_cast<byte>(1), "BIT_ZP V");
@@ -659,7 +661,7 @@ void test_logical(TestContext& t) {
         bus.write(0x3333, 0b01000000);
         bus.write(TEST_PC, CPU::INS_BIT_ABS);
         place_abs_operand(bus, TEST_PC, 0x3333);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.Z, static_cast<byte>(1), "BIT_ABS Z");
         t.check_eq(cpu.N, static_cast<byte>(0), "BIT_ABS N");
         t.check_eq(cpu.V, static_cast<byte>(1), "BIT_ABS V");
@@ -715,7 +717,7 @@ void test_arithmetic_compare(TestContext& t) {
                 break;
         }
 
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, expected, name);
     };
 
@@ -733,52 +735,52 @@ void test_arithmetic_compare(TestContext& t) {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x10; cpu.C = 1;
         bus.write(TEST_PC, CPU::INS_SBC_IMM); bus.write(TEST_PC + 1, 0x01);
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_IMM");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x10; cpu.C = 1;
         bus.write(TEST_PC, CPU::INS_SBC_ZP); bus.write(TEST_PC + 1, 0x20); bus.write(0x0020, 0x01);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_ZP");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x10; cpu.C = 1; cpu.X = 2;
         bus.write(TEST_PC, CPU::INS_SBC_ZPX); bus.write(TEST_PC + 1, 0x20); bus.write(0x0022, 0x01);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_ZPX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_ZPX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x10; cpu.C = 1;
         bus.write(TEST_PC, CPU::INS_SBC_ABS); place_abs_operand(bus, TEST_PC, 0x4100); bus.write(0x4100, 0x01);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_ABS");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_ABS");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x10; cpu.C = 1; cpu.X = 1;
         bus.write(TEST_PC, CPU::INS_SBC_ABX); place_abs_operand(bus, TEST_PC, 0x4100); bus.write(0x4101, 0x01);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_ABX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_ABX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x10; cpu.C = 1; cpu.Y = 1;
         bus.write(TEST_PC, CPU::INS_SBC_ABY); place_abs_operand(bus, TEST_PC, 0x4100); bus.write(0x4101, 0x01);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_ABY");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_ABY");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x10; cpu.C = 1; cpu.X = 1;
         bus.write(TEST_PC, CPU::INS_SBC_INX); bus.write(TEST_PC + 1, 0x30);
         bus.write(0x0031, 0x00); bus.write(0x0032, 0x41); bus.write(0x4100, 0x01);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_INX");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_INX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x10; cpu.C = 1; cpu.Y = 1;
         bus.write(TEST_PC, CPU::INS_SBC_INY); bus.write(TEST_PC + 1, 0x30);
         bus.write(0x0030, 0x00); bus.write(0x0031, 0x41); bus.write(0x4101, 0x01);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_INY");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x0F), "SBC_INY");
     }
 
     auto cmpA = [&](byte opcode, const std::string& name) {
@@ -798,7 +800,7 @@ void test_arithmetic_compare(TestContext& t) {
                 bus.write(TEST_PC + 1, 0x30); bus.write(0x0030, 0x00); bus.write(0x0031, 0x42); bus.write(0x4201, 0x10); break;
             default: break;
         }
-        run_ticks(cpu, bus);
+        run_steps(cpu, bus);
         t.check_eq(cpu.C, static_cast<byte>(1), name + " C");
         t.check_eq(cpu.Z, static_cast<byte>(0), name + " Z");
     };
@@ -816,38 +818,38 @@ void test_arithmetic_compare(TestContext& t) {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 0x20;
         bus.write(TEST_PC, CPU::INS_CPX_IMM); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPX_IMM");
+        run_steps(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPX_IMM");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 0x20;
         bus.write(TEST_PC, CPU::INS_CPX_ZP); bus.write(TEST_PC + 1, 0x40); bus.write(0x0040, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPX_ZP");
+        run_steps(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPX_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 0x20;
         bus.write(TEST_PC, CPU::INS_CPX_ABS); place_abs_operand(bus, TEST_PC, 0x4300); bus.write(0x4300, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPX_ABS");
+        run_steps(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPX_ABS");
     }
 
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.Y = 0x20;
         bus.write(TEST_PC, CPU::INS_CPY_IMM); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPY_IMM");
+        run_steps(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPY_IMM");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.Y = 0x20;
         bus.write(TEST_PC, CPU::INS_CPY_ZP); bus.write(TEST_PC + 1, 0x40); bus.write(0x0040, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPY_ZP");
+        run_steps(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPY_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.Y = 0x20;
         bus.write(TEST_PC, CPU::INS_CPY_ABS); place_abs_operand(bus, TEST_PC, 0x4300); bus.write(0x4300, 0x10);
-        run_ticks(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPY_ABS");
+        run_steps(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "CPY_ABS");
     }
 }
 
@@ -856,172 +858,172 @@ void test_inc_dec_shifts(TestContext& t) {
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         bus.write(0x0010, 0x0A); bus.write(TEST_PC, CPU::INS_INC_ZP); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x0B), "INC_ZP");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x0B), "INC_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 1; bus.write(0x0011, 0x0A); bus.write(TEST_PC, CPU::INS_INC_ZPX); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x0B), "INC_ZPX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x0B), "INC_ZPX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         bus.write(0x4400, 0x0A); bus.write(TEST_PC, CPU::INS_INC_ABS); place_abs_operand(bus, TEST_PC, 0x4400);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4400), static_cast<byte>(0x0B), "INC_ABS");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4400), static_cast<byte>(0x0B), "INC_ABS");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 1; bus.write(0x4401, 0x0A); bus.write(TEST_PC, CPU::INS_INC_ABX); place_abs_operand(bus, TEST_PC, 0x4400);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4401), static_cast<byte>(0x0B), "INC_ABX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4401), static_cast<byte>(0x0B), "INC_ABX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 0x0A; bus.write(TEST_PC, CPU::INS_INX);
-        run_ticks(cpu, bus); t.check_eq(cpu.X, static_cast<byte>(0x0B), "INX");
+        run_steps(cpu, bus); t.check_eq(cpu.X, static_cast<byte>(0x0B), "INX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.Y = 0x0A; bus.write(TEST_PC, CPU::INS_INY);
-        run_ticks(cpu, bus); t.check_eq(cpu.Y, static_cast<byte>(0x0B), "INY");
+        run_steps(cpu, bus); t.check_eq(cpu.Y, static_cast<byte>(0x0B), "INY");
     }
 
     // DEC/DEX/DEY
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         bus.write(0x0010, 0x0A); bus.write(TEST_PC, CPU::INS_DEC_ZP); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x09), "DEC_ZP");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x09), "DEC_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 1; bus.write(0x0011, 0x0A); bus.write(TEST_PC, CPU::INS_DEC_ZPX); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x09), "DEC_ZPX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x09), "DEC_ZPX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         bus.write(0x4500, 0x0A); bus.write(TEST_PC, CPU::INS_DEC_ABS); place_abs_operand(bus, TEST_PC, 0x4500);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4500), static_cast<byte>(0x09), "DEC_ABS");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4500), static_cast<byte>(0x09), "DEC_ABS");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 1; bus.write(0x4501, 0x0A); bus.write(TEST_PC, CPU::INS_DEC_ABX); place_abs_operand(bus, TEST_PC, 0x4500);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4501), static_cast<byte>(0x09), "DEC_ABX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4501), static_cast<byte>(0x09), "DEC_ABX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 0x0A; bus.write(TEST_PC, CPU::INS_DEX);
-        run_ticks(cpu, bus); t.check_eq(cpu.X, static_cast<byte>(0x09), "DEX");
+        run_steps(cpu, bus); t.check_eq(cpu.X, static_cast<byte>(0x09), "DEX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.Y = 0x0A; bus.write(TEST_PC, CPU::INS_DEY);
-        run_ticks(cpu, bus); t.check_eq(cpu.Y, static_cast<byte>(0x09), "DEY");
+        run_steps(cpu, bus); t.check_eq(cpu.Y, static_cast<byte>(0x09), "DEY");
     }
 
     // ASL
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x81; bus.write(TEST_PC, CPU::INS_ASL_ACC);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x02), "ASL_ACC"); t.check_eq(cpu.C, static_cast<byte>(1), "ASL_ACC C");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x02), "ASL_ACC"); t.check_eq(cpu.C, static_cast<byte>(1), "ASL_ACC C");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         bus.write(0x0010, 0x81); bus.write(TEST_PC, CPU::INS_ASL_ZP); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x02), "ASL_ZP");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x02), "ASL_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 1; bus.write(0x0011, 0x81); bus.write(TEST_PC, CPU::INS_ASL_ZPX); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x02), "ASL_ZPX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x02), "ASL_ZPX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         bus.write(0x4600, 0x81); bus.write(TEST_PC, CPU::INS_ASL_ABS); place_abs_operand(bus, TEST_PC, 0x4600);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4600), static_cast<byte>(0x02), "ASL_ABS");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4600), static_cast<byte>(0x02), "ASL_ABS");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 1; bus.write(0x4601, 0x81); bus.write(TEST_PC, CPU::INS_ASL_ABX); place_abs_operand(bus, TEST_PC, 0x4600);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4601), static_cast<byte>(0x02), "ASL_ABX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4601), static_cast<byte>(0x02), "ASL_ABX");
     }
 
     // LSR
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x03; bus.write(TEST_PC, CPU::INS_LSR_ACC);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x01), "LSR_ACC"); t.check_eq(cpu.C, static_cast<byte>(1), "LSR_ACC C");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x01), "LSR_ACC"); t.check_eq(cpu.C, static_cast<byte>(1), "LSR_ACC C");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         bus.write(0x0010, 0x03); bus.write(TEST_PC, CPU::INS_LSR_ZP); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x01), "LSR_ZP");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x01), "LSR_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 1; bus.write(0x0011, 0x03); bus.write(TEST_PC, CPU::INS_LSR_ZPX); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x01), "LSR_ZPX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x01), "LSR_ZPX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         bus.write(0x4700, 0x03); bus.write(TEST_PC, CPU::INS_LSR_ABS); place_abs_operand(bus, TEST_PC, 0x4700);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4700), static_cast<byte>(0x01), "LSR_ABS");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4700), static_cast<byte>(0x01), "LSR_ABS");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.X = 1; bus.write(0x4701, 0x03); bus.write(TEST_PC, CPU::INS_LSR_ABX); place_abs_operand(bus, TEST_PC, 0x4700);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4701), static_cast<byte>(0x01), "LSR_ABX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4701), static_cast<byte>(0x01), "LSR_ABX");
     }
 
     // ROL
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x80; cpu.C = 1; bus.write(TEST_PC, CPU::INS_ROL_ACC);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x01), "ROL_ACC"); t.check_eq(cpu.C, static_cast<byte>(1), "ROL_ACC C");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x01), "ROL_ACC"); t.check_eq(cpu.C, static_cast<byte>(1), "ROL_ACC C");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.C = 1; bus.write(0x0010, 0x80); bus.write(TEST_PC, CPU::INS_ROL_ZP); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x01), "ROL_ZP");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x01), "ROL_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.C = 1; cpu.X = 1; bus.write(0x0011, 0x80); bus.write(TEST_PC, CPU::INS_ROL_ZPX); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x01), "ROL_ZPX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x01), "ROL_ZPX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.C = 1; bus.write(0x4800, 0x80); bus.write(TEST_PC, CPU::INS_ROL_ABS); place_abs_operand(bus, TEST_PC, 0x4800);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4800), static_cast<byte>(0x01), "ROL_ABS");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4800), static_cast<byte>(0x01), "ROL_ABS");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.C = 1; cpu.X = 1; bus.write(0x4801, 0x80); bus.write(TEST_PC, CPU::INS_ROL_ABX); place_abs_operand(bus, TEST_PC, 0x4800);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4801), static_cast<byte>(0x01), "ROL_ABX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4801), static_cast<byte>(0x01), "ROL_ABX");
     }
 
     // ROR
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0x01; cpu.C = 1; bus.write(TEST_PC, CPU::INS_ROR_ACC);
-        run_ticks(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x80), "ROR_ACC"); t.check_eq(cpu.C, static_cast<byte>(1), "ROR_ACC C");
+        run_steps(cpu, bus); t.check_eq(cpu.A, static_cast<byte>(0x80), "ROR_ACC"); t.check_eq(cpu.C, static_cast<byte>(1), "ROR_ACC C");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.C = 1; bus.write(0x0010, 0x01); bus.write(TEST_PC, CPU::INS_ROR_ZP); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x80), "ROR_ZP");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0010), static_cast<byte>(0x80), "ROR_ZP");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.C = 1; cpu.X = 1; bus.write(0x0011, 0x01); bus.write(TEST_PC, CPU::INS_ROR_ZPX); bus.write(TEST_PC + 1, 0x10);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x80), "ROR_ZPX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x0011), static_cast<byte>(0x80), "ROR_ZPX");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.C = 1; bus.write(0x4900, 0x01); bus.write(TEST_PC, CPU::INS_ROR_ABS); place_abs_operand(bus, TEST_PC, 0x4900);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4900), static_cast<byte>(0x80), "ROR_ABS");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4900), static_cast<byte>(0x80), "ROR_ABS");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.C = 1; cpu.X = 1; bus.write(0x4901, 0x01); bus.write(TEST_PC, CPU::INS_ROR_ABX); place_abs_operand(bus, TEST_PC, 0x4900);
-        run_ticks(cpu, bus); t.check_eq(bus.read(0x4901), static_cast<byte>(0x80), "ROR_ABX");
+        run_steps(cpu, bus); t.check_eq(bus.read(0x4901), static_cast<byte>(0x80), "ROR_ABX");
     }
 }
 
@@ -1033,7 +1035,7 @@ void test_jumps_branches_status_system(TestContext& t) {
         place_abs_operand(bus, TEST_PC, 0x0300);
         bus.write(0x0300, CPU::INS_LDA_IMM);
         bus.write(0x0301, 0x9A);
-        run_ticks(cpu, bus, 10);
+        run_steps(cpu, bus, 10);
         t.check_eq(cpu.A, static_cast<byte>(0x9A), "JMP_ABS");
     }
 
@@ -1047,7 +1049,7 @@ void test_jumps_branches_status_system(TestContext& t) {
         bus.write(0x1000, 0x04);
         bus.write(0x0400, CPU::INS_LDA_IMM);
         bus.write(0x0401, 0x9B);
-        run_ticks(cpu, bus, 15);
+        run_steps(cpu, bus, 15);
         t.check_eq(cpu.A, static_cast<byte>(0x9B), "JMP_IND page-wrap bug");
     }
 
@@ -1058,7 +1060,7 @@ void test_jumps_branches_status_system(TestContext& t) {
         place_abs_operand(bus, TEST_PC, 0x0350);
         bus.write(0x0350, CPU::INS_LDA_IMM);
         bus.write(0x0351, 0x9C);
-        run_ticks(cpu, bus, 15);
+        run_steps(cpu, bus, 15);
         t.check_eq(cpu.SP, static_cast<byte>(0xFD), "JSR SP");
         t.check_eq(bus.read(0x01FF), static_cast<byte>(0x02), "JSR return high");
         t.check_eq(bus.read(0x01FE), static_cast<byte>(0x02), "JSR return low");
@@ -1074,7 +1076,7 @@ void test_jumps_branches_status_system(TestContext& t) {
         bus.write(0x0401, CPU::INS_LDA_IMM);
         bus.write(0x0402, 0x9D);
         bus.write(TEST_PC, CPU::INS_RTS_IMP);
-        run_ticks(cpu, bus, 20);
+        run_steps(cpu, bus, 20);
         t.check_eq(cpu.A, static_cast<byte>(0x9D), "RTS");
     }
 
@@ -1096,7 +1098,7 @@ void test_jumps_branches_status_system(TestContext& t) {
         if (opcode == CPU::INS_BVC) cpu.V = set_condition ? 0 : 1;
         if (opcode == CPU::INS_BVS) cpu.V = set_condition ? 1 : 0;
 
-        run_ticks(cpu, bus, 4);
+        run_steps(cpu, bus, 2);
         t.check_eq(cpu.A, static_cast<byte>(set_condition ? 0x20 : 0x10), name + (set_condition ? " taken" : " not-taken"));
     };
 
@@ -1121,31 +1123,31 @@ void test_jumps_branches_status_system(TestContext& t) {
     // Status flags
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
-        cpu.C = 1; bus.write(TEST_PC, CPU::INS_CLC); run_ticks(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(0), "CLC");
+        cpu.C = 1; bus.write(TEST_PC, CPU::INS_CLC); run_steps(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(0), "CLC");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
-        cpu.D = 1; bus.write(TEST_PC, CPU::INS_CLD); run_ticks(cpu, bus); t.check_eq(cpu.D, static_cast<byte>(0), "CLD");
+        cpu.D = 1; bus.write(TEST_PC, CPU::INS_CLD); run_steps(cpu, bus); t.check_eq(cpu.D, static_cast<byte>(0), "CLD");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
-        cpu.I = 1; bus.write(TEST_PC, CPU::INS_CLI); run_ticks(cpu, bus); t.check_eq(cpu.I, static_cast<byte>(0), "CLI");
+        cpu.I = 1; bus.write(TEST_PC, CPU::INS_CLI); run_steps(cpu, bus); t.check_eq(cpu.I, static_cast<byte>(0), "CLI");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
-        cpu.V = 1; bus.write(TEST_PC, CPU::INS_CLV); run_ticks(cpu, bus); t.check_eq(cpu.V, static_cast<byte>(0), "CLV");
+        cpu.V = 1; bus.write(TEST_PC, CPU::INS_CLV); run_steps(cpu, bus); t.check_eq(cpu.V, static_cast<byte>(0), "CLV");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
-        cpu.C = 0; bus.write(TEST_PC, CPU::INS_SEC); run_ticks(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "SEC");
+        cpu.C = 0; bus.write(TEST_PC, CPU::INS_SEC); run_steps(cpu, bus); t.check_eq(cpu.C, static_cast<byte>(1), "SEC");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
-        cpu.D = 0; bus.write(TEST_PC, CPU::INS_SED); run_ticks(cpu, bus); t.check_eq(cpu.D, static_cast<byte>(1), "SED");
+        cpu.D = 0; bus.write(TEST_PC, CPU::INS_SED); run_steps(cpu, bus); t.check_eq(cpu.D, static_cast<byte>(1), "SED");
     }
     {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
-        cpu.I = 0; bus.write(TEST_PC, CPU::INS_SEI); run_ticks(cpu, bus); t.check_eq(cpu.I, static_cast<byte>(1), "SEI");
+        cpu.I = 0; bus.write(TEST_PC, CPU::INS_SEI); run_steps(cpu, bus); t.check_eq(cpu.I, static_cast<byte>(1), "SEI");
     }
 
     // BRK
@@ -1154,7 +1156,7 @@ void test_jumps_branches_status_system(TestContext& t) {
         bus.write(TEST_PC, CPU::INS_BRK);
         bus.write(0xFFFE, 0x00);
         bus.write(0xFFFF, 0x06);
-        run_ticks(cpu, bus, 20);
+        run_steps(cpu, bus, 20);
         t.check_eq(cpu.I, static_cast<byte>(1), "BRK sets I");
         t.check_eq(cpu.SP, static_cast<byte>(0xFC), "BRK SP");
         t.check((bus.read(0x01FD) & 0x10) != 0, "BRK pushes B in stack copy");
@@ -1165,7 +1167,7 @@ void test_jumps_branches_status_system(TestContext& t) {
         CPU cpu; Bus bus; setup_cpu_bus(cpu, bus);
         cpu.A = 0xAA; cpu.X = 0xBB; cpu.Y = 0xCC;
         bus.write(TEST_PC, CPU::INS_NOP);
-        run_ticks(cpu, bus, 5);
+        run_steps(cpu, bus, 5);
         t.check_eq(cpu.A, static_cast<byte>(0xAA), "NOP A unchanged");
         t.check_eq(cpu.X, static_cast<byte>(0xBB), "NOP X unchanged");
         t.check_eq(cpu.Y, static_cast<byte>(0xCC), "NOP Y unchanged");
@@ -1181,7 +1183,7 @@ void test_jumps_branches_status_system(TestContext& t) {
         bus.write(TEST_PC, CPU::INS_RTI);
         bus.write(0x0650, CPU::INS_LDA_IMM);
         bus.write(0x0651, 0xDA);
-        run_ticks(cpu, bus, 20);
+        run_steps(cpu, bus, 20);
         t.check_eq(cpu.A, static_cast<byte>(0xDA), "RTI returns to PC");
         t.check_eq(cpu.C, static_cast<byte>(1), "RTI C");
         t.check_eq(cpu.V, static_cast<byte>(1), "RTI V");
