@@ -22,7 +22,6 @@
 #include <string>
 #include <fstream>
 #include <iostream>
-#include <limits>
 #include <SDL2/SDL.h>
 
 
@@ -50,42 +49,63 @@ struct Mem {
 };
 
 struct Rom {
-    static const u32 MAX_ROM = 1024 * 16; // 16KB of ROM
-    byte data[MAX_ROM];
-    void init() {
-        for (u32 i = 0; i < MAX_ROM; ++i) {
-            data[i] = 0;
-        }
-    };
-    
-    byte operator[](u32 addr) const {
-        return data[addr];
-    };
+    static const u32 MAIN_ROM_SIZE = 1024 * 14; // 14KB of main program ROM
+    static const u32 CHAR_ROM_SIZE = 1024 * 2; // 2KB of character generator ROM
 
-    byte & operator[](u32 addr) {
-        return data[addr];
+    byte main_data[MAIN_ROM_SIZE];
+    byte char_data[CHAR_ROM_SIZE];
+
+    void init() {
+        for (u32 i = 0; i < MAIN_ROM_SIZE; ++i) {
+            main_data[i] = 0;
+        }
+        for (u32 i = 0; i < CHAR_ROM_SIZE; ++i) {
+            char_data[i] = 0;
+        }
     }
 
-    bool load_from_file(const std::string& filename) {
+    bool load_main_from_file(const std::string& filename) {
         std::ifstream file(filename, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            std::cerr << "ROM Error: Could not open file " << filename << std::endl;
+            std::cerr << "Main ROM Error: Could not open file " << filename << std::endl;
             return false;
         }
 
         std::streamsize size = file.tellg();
-        if (size != MAX_ROM) {
-            std::cerr << "ROM Error: File size is " << size << " bytes, expected " << MAX_ROM << " bytes." << std::endl;
+        if (size != MAIN_ROM_SIZE) {
+            std::cerr << "Main ROM Error: File size is " << size << " bytes, expected " << MAIN_ROM_SIZE << " bytes." << std::endl;
             return false;
         }
 
         file.seekg(0, std::ios::beg);
-        if (file.read(reinterpret_cast<char*>(data), MAX_ROM)) {
+        if (file.read(reinterpret_cast<char*>(main_data), MAIN_ROM_SIZE)) {
             return true;
-        } else {
-            std::cerr << "ROM Error: Failed to read file data." << std::endl;
+        }
+
+        std::cerr << "Main ROM Error: Failed to read file data." << std::endl;
+        return false;
+    }
+
+    bool load_char_from_file(const std::string& filename) {
+        std::ifstream file(filename, std::ios::binary | std::ios::ate);
+        if (!file.is_open()) {
+            std::cerr << "Character ROM Error: Could not open file " << filename << std::endl;
             return false;
         }
+
+        std::streamsize size = file.tellg();
+        if (size != CHAR_ROM_SIZE) {
+            std::cerr << "Character ROM Error: File size is " << size << " bytes, expected " << CHAR_ROM_SIZE << " bytes." << std::endl;
+            return false;
+        }
+
+        file.seekg(0, std::ios::beg);
+        if (file.read(reinterpret_cast<char*>(char_data), CHAR_ROM_SIZE)) {
+            return true;
+        }
+
+        std::cerr << "Character ROM Error: Failed to read file data." << std::endl;
+        return false;
     }
 };
 
@@ -107,11 +127,30 @@ struct Vram {
     }
 };
 
+struct Io {
+    static const u32 MAX_IO = 1024 * 4; // 4KB of I/O space
+    byte data[MAX_IO];
+    void init() {
+        for (u32 i = 0; i < MAX_IO; ++i) {
+            data[i] = 0;
+        }
+    };
+    
+    byte operator[](u32 addr) const {
+        return data[addr];
+    };
+
+    byte & operator[](u32 addr) {
+        return data[addr];
+    }
+};
+
 // Unified Memory System that translates addresses automatically
 struct Bus {
     Mem ram;
     Rom rom;
     Vram vram;
+    Io io;
     static const u32 PageSize = 4096; // 4KB pages for memory mapping
     // 16 pages of 4KB to cover the entire 64KB address space
     // We create separate read and write maps so ROM writes can point to a dead buffer
@@ -132,37 +171,56 @@ struct Bus {
             read_map[page]  = &ram.data[page * PageSize];
             write_map[page] = &ram.data[page * PageSize];
         }
-        // Map the remaining 4 pages (0xC000 to 0xFFFF) to ROM
-        // We subtract 12 from the index so page 12 points to index 0 of ROM data
+
+        // Map 0xC000-0xFFFF as ROM. The character ROM occupies the first 2KB of this window,
+        // while the remaining bytes are used for the main program ROM.
         for (int page = 12; page < 16; ++page) {
-            read_map[page]  = &rom.data[(page - 12) * PageSize];
-            
-            // ROM writes pushed to junk page
-            write_map[page] = junk_page; 
+            read_map[page] = junk_page;
+            write_map[page] = junk_page;
         }
     }
 
     // Zero conditional branches! Just bit shifts and pointer math.
     inline byte read(word address) const {
+        if (address >= 0xC000 && address < 0xC800) {
+            return rom.char_data[address - 0xC000];
+        }
+        if (address >= 0xC800 && address <= 0xFFFF) {
+            return rom.main_data[address - 0xC800];
+        }
+
         u32 page = address >> 12;         // Top 4 bits get the page index (0-15)
         u32 offset = address & 0x0FFF;    // Bottom 12 bits get the byte within that 4KB page
         if (page == 11) {
             return vram.read(offset);
         }
+        if (page == 10) {
+            return io.data[offset];
+        }
         return read_map[page][offset];
     }
 
     inline void write(word address, byte value) {
+        if (address >= 0xC000 && address <= 0xFFFF) {
+            // ROM area is read-only; discard writes to a dead buffer.
+            junk_page[0] = value;
+            return;
+        }
+
         u32 page = address >> 12;
         u32 offset = address & 0x0FFF;
         if (page == 11) {
             vram.write(offset, value);
             return;
         }
+        if (page == 10) {
+            io.data[offset] = value;
+            return;
+        }
         write_map[page][offset] = value;
     }
 
-    void render_screen(std::atomic<bool> &running) const {
+    void render_screen(std::atomic<bool> &running) {
     const int SCREEN_WIDTH = 640;
     const int SCREEN_HEIGHT = 400;
     const int SCALE = 2; // Scales window to 1280x800 so it's easy to see
@@ -188,7 +246,7 @@ struct Bus {
 
     bool window_open = true;
     SDL_Event event;
-
+ 
     // Window event loop
     while (window_open && running.load(std::memory_order_relaxed)) {
         while (SDL_PollEvent(&event)) {
@@ -196,6 +254,15 @@ struct Bus {
                 running.store(false, std::memory_order_relaxed);
                 window_open = false;
             }
+            else if (event.type == SDL_KEYDOWN) {
+                std::cout << "Key: " << event.key.keysym.sym << std::endl;
+                int keycode = event.key.keysym.sym;
+                // A000 holds the raw SDL2 keycode byte for the ROM to translate into a
+                // C16 glyph index before writing the final char into VRAM at B000.
+                write(0xA000, static_cast<byte>(keycode & 0xFF));
+                std::cout << read(0xA000) << std::endl;
+            }
+            
         }
 
         // Clear display to a dark gray background
@@ -229,6 +296,7 @@ struct Bus {
                 }
             }
         }
+        
 
         SDL_RenderPresent(renderer);
         SDL_Delay(16); // Cap at roughly 60 FPS to keep your CPU happy
@@ -286,9 +354,11 @@ struct CPU {
         // Store A
         INS_STA_ZP  = 0x85,
         INS_STA_ZPX = 0x95,
+        INS_STA_INX = 0x81,
         INS_STA_ABS = 0x8D,
         INS_STA_ABX = 0x9D,
         INS_STA_ABY = 0x99,
+        INS_STA_INY = 0x91,
         // Store X
         INS_STX_ZP  = 0x86,
         INS_STX_ZPY = 0x96,
@@ -592,6 +662,11 @@ struct CPU {
                     WriteByte(zero_page_addr, A, bus);
                     break;
                 }
+                case INS_STA_INX: {
+                    word effective_addr = indexed_indirect(fetch(bus), bus);
+                    WriteByte(effective_addr, A, bus);
+                    break;
+                }
                 case INS_STA_ABS: {
                     word addr = fetch(bus); // Low byte
                     addr |= ((word)fetch(bus)) << 8; // High byte
@@ -608,6 +683,11 @@ struct CPU {
                     word addr = fetch(bus); // Low byte
                     addr |= ((word)fetch(bus)) << 8; // High byte
                     WriteByte(addr + Y, A, bus);
+                    break;
+                }
+                case INS_STA_INY: {
+                    word effective_addr = indirect_indexed(fetch(bus), bus);
+                    WriteByte(effective_addr, A, bus);
                     break;
                 }
                 case INS_STX_ZP: {
@@ -1719,9 +1799,9 @@ void setup_vram_test_pattern(Bus &bus) {
         bus.write(vram_start + i, 0x20); // Fill the first row with spaces
     }
     // 1. Fill the entire 4,000 byte screen with a repeating cycle of glyphs
-    for (u32 i = 80; i < 4000; ++i) {
+    for (u32 i = 80, x = 0; i < 4000; ++i, ++x) {
         // This cycles character indices 0 through 63 repeatedly across the grid
-        bus.write(vram_start + i, static_cast<byte>(i % 64));
+        bus.write(vram_start + i, static_cast<byte>(x % 64));
     }
 
     // 2. Write a test message to the top-left corner of the screen
@@ -1748,17 +1828,24 @@ int main() {
     std::atomic<bool> running(true);
     
     bus.init();
-    
-    if (!bus.rom.load_from_file("rom.bin")) {
-        std::cerr << "Failed to load ROM file." << std::endl;
+
+    if (!bus.rom.load_main_from_file("rom.bin")) {
+        std::cerr << "Failed to load main ROM file." << std::endl;
         return 1;
     }
+
+    if (!bus.rom.load_char_from_file("char_rom.bin")) {
+        std::cerr << "Failed to load character ROM file." << std::endl;
+        return 1;
+    }
+
     byte low_byte = bus.read(0xFFFC);
     byte high_byte = bus.read(0xFFFD);
-    
+
     std::cout << "--- ROM Diagnostics ---" << std::endl;
-    std::cout << "File byte at 0xFFFC (index 0x3FFC): 0x" << std::hex << (int)low_byte << std::endl;
-    std::cout << "File byte at 0xFFFD (index 0x3FFD): 0x" << std::hex << (int)high_byte << std::endl;
+    std::cout << "Main ROM byte at 0xFFFC (index 0x3FFC): 0x" << std::hex << (int)low_byte << std::endl;
+    std::cout << "Main ROM byte at 0xFFFD (index 0x3FFD): 0x" << std::hex << (int)high_byte << std::endl;
+    std::cout << "Character ROM byte at 0xC000: 0x" << std::hex << (int)bus.read(0xC000) << std::endl;
     // Fill VRAM with test indices
     setup_vram_test_pattern(bus);
     

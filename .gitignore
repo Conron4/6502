@@ -17,11 +17,12 @@ compile
 depcomp
 install-sh
 missing
-main_6502
 opcode_tests
 stamp-h1
 test-driver
 bin/.dirstamp
-source/.deps/
-source/.dirstamp
+src/.deps/
+src/.dirstamp
+bin/rom.bin
+bin/char_rom.bin
 *.o

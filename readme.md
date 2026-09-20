@@ -1,1 +1,11 @@
-6502 Emulator written in C++
+# 6502 Emulator written in C++
+Memory map 
+0x0000 - 0xC000: RAM
+    - 0x0000 - 0x00FF: Zero Page
+    - 0x0100 - 0x01FF: Stack
+    - 0x0200 - 0x9FFF: General Purpose RAM
+    - 0xA000 - 0xAFFF: Memory Mapped I/O
+    - 0xB000 - 0xBFFF: VRAM
+0xC000 - 0xFFFF: ROM
+    - 0xC000 - 0xC7FF: Character ROM
+    - 0xC800 - 0xFFFF: Program ROM
