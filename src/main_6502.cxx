@@ -153,37 +153,34 @@ struct timer {
 
     std::thread timer_thread;
 
-    void start(std::function<void()> callback, int interval_ms) {
+    void start(std::function<void()> callback, int interval_ms)
+    {
+        stop();
 
         running.store(true);
         irq_pending.store(false);
 
         timer_thread = std::thread([this, callback, interval_ms]() {
 
-            while (running.load()) {
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(interval_ms)
+            );
 
-                std::this_thread::sleep_for(
-                    std::chrono::milliseconds(interval_ms)
-                );
-
-                if (running.load()) {
-                    callback();
-                }
+            if (running.load()) {
+                callback();
+                running.store(false);
             }
+
         });
     }
 
-    void stop() {
-
+    void stop()
+    {
         running.store(false);
 
         if (timer_thread.joinable()) {
             timer_thread.join();
         }
-    }
-
-    void clear_irq() {
-        irq_pending.store(false);
     }
 };
 struct KeyboardFIFO {
@@ -332,11 +329,11 @@ struct Bus {
                     // $A002: timer control register.
                     // Bit 0 = timer enabled.
                     if (value & 0x01) {
-                        if (!system_timer.running.load()) {
+                        
                             system_timer.start([this]() {
                                 system_timer.irq_pending.store(true);
                             }, read(0xA003) | (read(0xA004) << 8)); // 1 second interval
-                        }
+                        
                     } else {
                         system_timer.stop();
                         system_timer.irq_pending.store(false);
