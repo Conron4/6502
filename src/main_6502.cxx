@@ -23,6 +23,7 @@
 #include <fstream>
 #include <iostream>
 #include <SDL2/SDL.h>
+#include <mutex>
 
 
 using byte = unsigned char;
@@ -145,12 +146,71 @@ struct Io {
     }
 };
 
+struct KeyboardFIFO {
+    static constexpr u32 SIZE = 32;
+
+    byte data[SIZE];
+    u32 head = 0;
+    u32 tail = 0;
+    u32 count = 0;
+
+    mutable std::mutex mutex;
+
+    bool push(byte value)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        if (count >= SIZE) {
+            // FIFO full: discard the new key
+            return false;
+        }
+
+        data[tail] = value;
+        tail = (tail + 1) % SIZE;
+        count++;
+
+        return true;
+    }
+
+    byte pop()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        if (count == 0) {
+            return 0;
+        }
+
+        byte value = data[head];
+
+        head = (head + 1) % SIZE;
+        count--;
+
+        return value;
+    }
+
+    bool available() const
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        return count != 0;
+    }
+
+    void clear()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        head = 0;
+        tail = 0;
+        count = 0;
+    }
+};
+
 // Unified Memory System that translates addresses automatically
 struct Bus {
     Mem ram;
     Rom rom;
     Vram vram;
     Io io;
+    mutable KeyboardFIFO keyboard;
     static const u32 PageSize = 4096; // 4KB pages for memory mapping
     // 16 pages of 4KB to cover the entire 64KB address space
     // We create separate read and write maps so ROM writes can point to a dead buffer
@@ -195,7 +255,20 @@ struct Bus {
             return vram.read(offset);
         }
         if (page == 10) {
-            return io.data[offset];
+            switch (offset) {
+                case 0x0000:
+                    // $A000: keyboard FIFO data register.
+                    // Reading removes one byte from the FIFO.
+                    return keyboard.pop();
+
+                case 0x0001:
+                    // $A001: keyboard FIFO status.
+                    // Bit 0 = data available.
+                    return keyboard.available() ? 0x01 : 0x00;
+
+                default:
+                    return io.data[offset];
+            }
         }
         return read_map[page][offset];
     }
@@ -255,12 +328,12 @@ struct Bus {
                 window_open = false;
             }
             else if (event.type == SDL_KEYDOWN) {
-                std::cout << "Key: " << event.key.keysym.sym << std::endl;
                 int keycode = event.key.keysym.sym;
-                // A000 holds the raw SDL2 keycode byte for the ROM to translate into a
-                // C16 glyph index before writing the final char into VRAM at B000.
-                write(0xA000, static_cast<byte>(keycode & 0xFF));
-                std::cout << read(0xA000) << std::endl;
+                byte value = static_cast<byte>(keycode & 0xFF);
+
+                if (!keyboard.push(value)) {
+                    std::cout << "Keyboard FIFO full, key dropped" << std::endl;
+                }
             }
             
         }
@@ -531,7 +604,9 @@ struct CPU {
     }
 
     void execute_instruction(Bus & bus) {
+        word instruction_pc = PC;
         byte INS = fetch(bus);
+        printf("$%04X  %02X\n", instruction_pc, INS);
         switch (INS) {
                 case INS_LDA_IMM: {
                     byte value = fetch(bus);
@@ -1673,7 +1748,23 @@ struct CPU {
                     break;
                 }
                 default:
-                    printf("Unknown instruction: %02X\n", INS);
+                    printf("\n=== ILLEGAL OPCODE ===\n");
+                    printf("PC after fetch : $%04X\n", PC - 1);
+                    printf("Opcode         : $%02X\n", INS);
+                    printf("A              : $%02X\n", A);
+                    printf("X              : $%02X\n", X);
+                    printf("Y              : $%02X\n", Y);
+                    printf("SP             : $%02X\n", SP);
+                    printf("P              : $%02X\n", processorstatus());
+
+                    printf("Previous bytes : ");
+
+                    for (int i = -4; i <= 4; ++i) {
+                        word addr = static_cast<word>((PC - 1) + i);
+                        printf("%02X ", bus.read(addr));
+                    }
+
+                    printf("\n");
                     exit(1);
         }
     }
@@ -1847,7 +1938,7 @@ int main() {
     std::cout << "Main ROM byte at 0xFFFD (index 0x3FFD): 0x" << std::hex << (int)high_byte << std::endl;
     std::cout << "Character ROM byte at 0xC000: 0x" << std::hex << (int)bus.read(0xC000) << std::endl;
     // Fill VRAM with test indices
-    setup_vram_test_pattern(bus);
+    //setup_vram_test_pattern(bus);
     
     // Run the tile graphics renderer
     std::cout << "Rendering 80x50 pixel canvas..." << std::endl;
