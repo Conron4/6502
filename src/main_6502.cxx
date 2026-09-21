@@ -155,23 +155,26 @@ struct timer {
 
     void start(std::function<void()> callback, int interval_ms)
     {
-        stop();
+        if (timer_thread.joinable()) {
+            timer_thread.join();
+        }
 
         running.store(true);
         irq_pending.store(false);
 
-        timer_thread = std::thread([this, callback, interval_ms]() {
+        timer_thread = std::thread(
+            [this, callback, interval_ms]() {
 
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(interval_ms)
-            );
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(interval_ms)
+                );
 
-            if (running.load()) {
-                callback();
-                running.store(false);
+                if (running.load()) {
+                    callback();
+                    running.store(false);
+                }
             }
-
-        });
+        );
     }
 
     void stop()
@@ -439,7 +442,7 @@ struct Bus {
 };
 
 struct CPU {
-    timer system_timer; // Reference to the system timer for IRQ handling
+    timer& system_timer;
     word PC; // Program Counter
     byte SP; // Stack Pointer
     
@@ -456,7 +459,10 @@ struct CPU {
     byte processorstatus() const {
         return (N << 7) | (V << 6) | (1 << 5) | (B << 4) | (D << 3) | (I << 2) | (Z << 1) | C;
     }
-
+    CPU(timer& timer_ref)
+    : system_timer(timer_ref)
+    {
+    }
     // Opcodes
     static const byte
         // Load and Store Instructions
@@ -2004,7 +2010,7 @@ void setup_vram_test_pattern(Bus &bus) {
 
 int main() {
     Bus bus;
-    CPU cpu;
+    CPU cpu(bus.system_timer);
     std::atomic<bool> running(true);
     
     bus.init();
