@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License along
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#include <functional>
 #include <stdio.h>
 #include <stdlib.h>
 #include <atomic>
@@ -145,7 +146,46 @@ struct Io {
         return data[addr];
     }
 };
+struct timer {
 
+    std::atomic<bool> running{false};
+    std::atomic<bool> irq_pending{false};
+
+    std::thread timer_thread;
+
+    void start(std::function<void()> callback, int interval_ms) {
+
+        running.store(true);
+        irq_pending.store(false);
+
+        timer_thread = std::thread([this, callback, interval_ms]() {
+
+            while (running.load()) {
+
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(interval_ms)
+                );
+
+                if (running.load()) {
+                    callback();
+                }
+            }
+        });
+    }
+
+    void stop() {
+
+        running.store(false);
+
+        if (timer_thread.joinable()) {
+            timer_thread.join();
+        }
+    }
+
+    void clear_irq() {
+        irq_pending.store(false);
+    }
+};
 struct KeyboardFIFO {
     static constexpr u32 SIZE = 32;
 
@@ -210,6 +250,7 @@ struct Bus {
     Rom rom;
     Vram vram;
     Io io;
+    mutable timer system_timer;
     mutable KeyboardFIFO keyboard;
     static const u32 PageSize = 4096; // 4KB pages for memory mapping
     // 16 pages of 4KB to cover the entire 64KB address space
@@ -265,7 +306,6 @@ struct Bus {
                     // $A001: keyboard FIFO status.
                     // Bit 0 = data available.
                     return keyboard.available() ? 0x01 : 0x00;
-
                 default:
                     return io.data[offset];
             }
@@ -287,8 +327,27 @@ struct Bus {
             return;
         }
         if (page == 10) {
-            io.data[offset] = value;
-            return;
+            switch(offset) {
+                case 0x0002:
+                    // $A002: timer control register.
+                    // Bit 0 = timer enabled.
+                    if (value & 0x01) {
+                        if (!system_timer.running.load()) {
+                            system_timer.start([this]() {
+                                system_timer.irq_pending.store(true);
+                            }, read(0xA003) | (read(0xA004) << 8)); // 1 second interval
+                        }
+                    } else {
+                        system_timer.stop();
+                        system_timer.irq_pending.store(false);
+                    }
+                    break;
+
+                default:
+                    io.data[offset] = value;
+                    break;
+
+            }
         }
         write_map[page][offset] = value;
     }
@@ -383,6 +442,7 @@ struct Bus {
 };
 
 struct CPU {
+    timer system_timer; // Reference to the system timer for IRQ handling
     word PC; // Program Counter
     byte SP; // Stack Pointer
     
@@ -602,11 +662,43 @@ struct CPU {
         Z = (value == 0);
         N = (value & 0x80) != 0;
     }
+    void service_irq(Bus &bus){
+    // Hardware IRQ pushes the current PC.
+    WriteByte(0x0100 + SP, (PC >> 8) & 0xFF, bus);
+    SP--;
 
+    WriteByte(0x0100 + SP, PC & 0xFF, bus);
+    SP--;
+
+    // Push processor status.
+    //
+    // Bit 5 is always 1.
+    // B is CLEAR for a hardware IRQ.
+    byte stack_P = processorstatus() & ~0x10;
+
+    WriteByte(0x0100 + SP, stack_P, bus);
+    SP--;
+
+    // Disable further maskable IRQs.
+    I = 1;
+
+    // Acknowledge the timer interrupt.
+    system_timer.irq_pending.store(false);
+
+    // Fetch IRQ vector from $FFFE/$FFFF.
+    byte target_low = ReadByte(0xFFFE, bus);
+    byte target_high = ReadByte(0xFFFF, bus);
+
+    PC = target_low | ((word)target_high << 8);
+}
     void execute_instruction(Bus & bus) {
+        if (system_timer.irq_pending.load() && !I) {
+            service_irq(bus);
+            return;
+        }
         word instruction_pc = PC;
         byte INS = fetch(bus);
-        printf("$%04X  %02X\n", instruction_pc, INS);
+        //printf("$%04X  %02X\n", instruction_pc, INS);
         switch (INS) {
                 case INS_LDA_IMM: {
                     byte value = fetch(bus);
